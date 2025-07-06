@@ -139,11 +139,13 @@ for obj_type in YOUR_OBJECT_TYPES:
 # Add default style
 OBJECT_STYLES['Default'] = {'symbol': 'circle', 'color': '#BDC3C7', 'size': 6, 'category': 'Other'}
 
-# Chart appearance settings
+# Chart appearance settings with web-safe fonts
 CHART_CONFIG = {
     'background_color': '#0B1426',
     'paper_color': '#0B1426',
     'font_color': 'white',
+    'font_family': 'Arial, Helvetica, sans-serif',
+    'title_font_family': 'Georgia, "Times New Roman", Times, serif',
     'grid_color': 'rgba(128,128,128,0.3)',
     'star_color': 'lightgray',
     'text_color': 'white',

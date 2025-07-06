@@ -8,6 +8,7 @@ from data_utils import load_messier_data, process_coordinates, get_filter_option
 from chart_generator import MessierSkyChart
 import argparse
 import sys
+import os
 
 
 def create_app(csv_path=None):
@@ -76,7 +77,7 @@ def create_app(csv_path=None):
     # Collapse/Expand callbacks
     @app.callback(
         [Output("object-type-collapse", "is_open"),
-         Output("object-type-icon", "className")],
+         Output("object-type-icon", "children")],
         Input("object-type-collapse-button", "n_clicks"),
         State("object-type-collapse", "is_open"),
         prevent_initial_call=True
@@ -84,13 +85,13 @@ def create_app(csv_path=None):
     def toggle_object_type_collapse(n_clicks, is_open):
         if n_clicks:
             new_state = not is_open
-            icon_class = "fas fa-chevron-down me-2" if new_state else "fas fa-chevron-right me-2"
-            return new_state, icon_class
-        return is_open, "fas fa-chevron-right me-2"
+            icon_text = "▼ " if new_state else "▶ "
+            return new_state, icon_text
+        return is_open, "▶ "
     
     @app.callback(
         [Output("constellation-collapse", "is_open"),
-         Output("constellation-icon", "className")],
+         Output("constellation-icon", "children")],
         Input("constellation-collapse-button", "n_clicks"),
         State("constellation-collapse", "is_open"),
         prevent_initial_call=True
@@ -98,13 +99,13 @@ def create_app(csv_path=None):
     def toggle_constellation_collapse(n_clicks, is_open):
         if n_clicks:
             new_state = not is_open
-            icon_class = "fas fa-chevron-down me-2" if new_state else "fas fa-chevron-right me-2"
-            return new_state, icon_class
-        return is_open, "fas fa-chevron-right me-2"
+            icon_text = "▼ " if new_state else "▶ "
+            return new_state, icon_text
+        return is_open, "▶ "
     
     @app.callback(
         [Output("season-collapse", "is_open"),
-         Output("season-icon", "className")],
+         Output("season-icon", "children")],
         Input("season-collapse-button", "n_clicks"),
         State("season-collapse", "is_open"),
         prevent_initial_call=True
@@ -112,18 +113,18 @@ def create_app(csv_path=None):
     def toggle_season_collapse(n_clicks, is_open):
         if n_clicks:
             new_state = not is_open
-            icon_class = "fas fa-chevron-down me-2" if new_state else "fas fa-chevron-right me-2"
-            return new_state, icon_class
-        return is_open, "fas fa-chevron-right me-2"
+            icon_text = "▼ " if new_state else "▶ "
+            return new_state, icon_text
+        return is_open, "▶ "
     
     # Expand/Collapse All buttons
     @app.callback(
         [Output("object-type-collapse", "is_open", allow_duplicate=True),
          Output("constellation-collapse", "is_open", allow_duplicate=True),
          Output("season-collapse", "is_open", allow_duplicate=True),
-         Output("object-type-icon", "className", allow_duplicate=True),
-         Output("constellation-icon", "className", allow_duplicate=True),
-         Output("season-icon", "className", allow_duplicate=True)],
+         Output("object-type-icon", "children", allow_duplicate=True),
+         Output("constellation-icon", "children", allow_duplicate=True),
+         Output("season-icon", "children", allow_duplicate=True)],
         [Input("expand-all-filters", "n_clicks"),
          Input("collapse-all-filters", "n_clicks")],
         prevent_initial_call=True
@@ -136,11 +137,11 @@ def create_app(csv_path=None):
         button_id = ctx.triggered[0]['prop_id'].split('.')[0]
         
         if button_id == "expand-all-filters":
-            icon_class = "fas fa-chevron-down me-2"
-            return True, True, True, icon_class, icon_class, icon_class
+            icon_text = "▼ "
+            return True, True, True, icon_text, icon_text, icon_text
         elif button_id == "collapse-all-filters":
-            icon_class = "fas fa-chevron-right me-2"
-            return False, False, False, icon_class, icon_class, icon_class
+            icon_text = "▶ "
+            return False, False, False, icon_text, icon_text, icon_text
         
         return dash.no_update
     
@@ -165,6 +166,7 @@ def create_app(csv_path=None):
     )
     def update_season_badge(selected_seasons):
         return f"{len(selected_seasons)} selected"
+    
     @app.callback(
         Output("object-type-filter", "value"),
         [Input("select-all-types", "n_clicks"),
@@ -227,7 +229,9 @@ def create_layout(filter_options):
     return dbc.Container([
         dbc.Row([
             dbc.Col([
-                html.H1("Interactive Messier Sky Chart", className="text-center mb-4"),
+                html.H1("Interactive Messier Sky Chart", 
+                       className="text-center mb-4",
+                       style={"font-family": "Georgia, 'Times New Roman', Times, serif"}),
                 html.Hr(),
                 
                 # Compact filter controls row
@@ -245,20 +249,23 @@ def create_layout(filter_options):
                                 options=[{"label": "Show star labels", "value": "show"}],
                                 value=["show"],
                                 inline=True,
-                                className="mb-2"
+                                className="mb-2",
+                                style={"font-family": "Arial, Helvetica, sans-serif"}
                             ),
                             dbc.Checklist(
                                 id="constellation-lines-toggle",
                                 options=[{"label": "Show constellation lines", "value": "show"}],
                                 value=["show"],
                                 inline=True,
-                                className="mb-2"
+                                className="mb-2",
+                                style={"font-family": "Arial, Helvetica, sans-serif"}
                             ),
                             dbc.Checklist(
                                 id="constellation-labels-toggle",
                                 options=[{"label": "Show constellation names", "value": "show"}],
                                 value=["show"],
-                                inline=True
+                                inline=True,
+                                style={"font-family": "Arial, Helvetica, sans-serif"}
                             )
                         ])
                     ], width=8)
@@ -272,15 +279,18 @@ def create_layout(filter_options):
                             dbc.CardHeader([
                                 dbc.Button(
                                     [
-                                        html.I(className="fas fa-chevron-down me-2", id="object-type-icon"),
-                                        html.Span("Object Types", className="fw-bold"),
+                                        html.Span("▼ ", id="object-type-icon", 
+                                                style={"font-family": "Arial, Helvetica, sans-serif"}),
+                                        html.Span("Object Types", className="fw-bold",
+                                                style={"font-family": "Arial, Helvetica, sans-serif"}),
                                         dbc.Badge(f"{len(filter_options['object_types'])} selected", 
                                                 id="object-type-badge", color="primary", className="ms-2")
                                     ],
                                     id="object-type-collapse-button",
                                     color="link",
                                     className="text-start w-100 text-decoration-none",
-                                    style={"border": "none", "padding": "0.5rem"}
+                                    style={"border": "none", "padding": "0.5rem", 
+                                          "font-family": "Arial, Helvetica, sans-serif"}
                                 )
                             ], style={"padding": "0"}),
                             dbc.Collapse([
@@ -294,7 +304,8 @@ def create_layout(filter_options):
                                         options=[{"label": obj_type, "value": obj_type} 
                                                 for obj_type in filter_options['object_types']],
                                         value=filter_options['object_types'],
-                                        inline=False
+                                        inline=False,
+                                        style={"font-family": "Arial, Helvetica, sans-serif"}
                                     )
                                 ])
                             ], id="object-type-collapse", is_open=False)
@@ -307,15 +318,18 @@ def create_layout(filter_options):
                             dbc.CardHeader([
                                 dbc.Button(
                                     [
-                                        html.I(className="fas fa-chevron-right me-2", id="constellation-icon"),
-                                        html.Span("Constellations", className="fw-bold"),
+                                        html.Span("▶ ", id="constellation-icon",
+                                                style={"font-family": "Arial, Helvetica, sans-serif"}),
+                                        html.Span("Constellations", className="fw-bold",
+                                                style={"font-family": "Arial, Helvetica, sans-serif"}),
                                         dbc.Badge(f"{len(filter_options['constellations'])} selected", 
                                                 id="constellation-badge", color="primary", className="ms-2")
                                     ],
                                     id="constellation-collapse-button",
                                     color="link",
                                     className="text-start w-100 text-decoration-none",
-                                    style={"border": "none", "padding": "0.5rem"}
+                                    style={"border": "none", "padding": "0.5rem",
+                                          "font-family": "Arial, Helvetica, sans-serif"}
                                 )
                             ], style={"padding": "0"}),
                             dbc.Collapse([
@@ -329,7 +343,8 @@ def create_layout(filter_options):
                                         options=[{"label": const, "value": const} 
                                                 for const in filter_options['constellations']],
                                         value=filter_options['constellations'],
-                                        inline=False
+                                        inline=False,
+                                        style={"font-family": "Arial, Helvetica, sans-serif"}
                                     )
                                 ])
                             ], id="constellation-collapse", is_open=False)
@@ -342,15 +357,18 @@ def create_layout(filter_options):
                             dbc.CardHeader([
                                 dbc.Button(
                                     [
-                                        html.I(className="fas fa-chevron-right me-2", id="season-icon"),
-                                        html.Span("Best Viewing Season", className="fw-bold"),
+                                        html.Span("▶ ", id="season-icon",
+                                                style={"font-family": "Arial, Helvetica, sans-serif"}),
+                                        html.Span("Best Viewing Season", className="fw-bold",
+                                                style={"font-family": "Arial, Helvetica, sans-serif"}),
                                         dbc.Badge(f"{len(filter_options['seasons'])} selected", 
                                                 id="season-badge", color="primary", className="ms-2")
                                     ],
                                     id="season-collapse-button",
                                     color="link",
                                     className="text-start w-100 text-decoration-none",
-                                    style={"border": "none", "padding": "0.5rem"}
+                                    style={"border": "none", "padding": "0.5rem",
+                                          "font-family": "Arial, Helvetica, sans-serif"}
                                 )
                             ], style={"padding": "0"}),
                             dbc.Collapse([
@@ -364,7 +382,8 @@ def create_layout(filter_options):
                                         options=[{"label": season, "value": season} 
                                                 for season in filter_options['seasons']],
                                         value=filter_options['seasons'],
-                                        inline=False
+                                        inline=False,
+                                        style={"font-family": "Arial, Helvetica, sans-serif"}
                                     )
                                 ])
                             ], id="season-collapse", is_open=False)
@@ -378,7 +397,8 @@ def create_layout(filter_options):
                         dbc.Alert(
                             id="object-count",
                             color="info",
-                            className="text-center mb-3"
+                            className="text-center mb-3",
+                            style={"font-family": "Arial, Helvetica, sans-serif"}
                         )
                     ])
                 ]),
@@ -401,7 +421,7 @@ def print_usage_instructions():
     print("MESSIER SKY CHART SETUP INSTRUCTIONS")
     print("="*60)
     print("\n1. Install required packages:")
-    print("   pip install pandas plotly dash dash-bootstrap-components")
+    print("   pip install -r requirements.txt")
     print("\n2. The app will automatically look for 'Messier_data.csv' in the current directory")
     print("   This provides the complete, reliable 110-object Messier catalog")
     print("\n3. Or run with sample data if no CSV is found:")
@@ -426,19 +446,24 @@ if __name__ == "__main__":
     
     args = parser.parse_args()
     
+    # For deployment, check environment variables
+    port = int(os.environ.get('PORT', args.port))
+    host = os.environ.get('HOST', args.host)
+    debug = os.environ.get('DEBUG', 'false').lower() == 'true' or args.debug
+    
     # Print instructions
     print_usage_instructions()
     
     # Create and run app
     try:
         app = create_app(args.csv)
-        print(f"\nStarting server on http://{args.host}:{args.port}")
+        print(f"\nStarting server on http://{host}:{port}")
         # Use app.run for newer versions of Dash
         try:
-            app.run(debug=args.debug, host=args.host, port=args.port)
+            app.run(debug=debug, host=host, port=port)
         except AttributeError:
             # Fallback for older Dash versions
-            app.run_server(debug=args.debug, host=args.host, port=args.port)
+            app.run_server(debug=debug, host=host, port=port)
     except KeyboardInterrupt:
         print("\nShutting down...")
     except Exception as e:

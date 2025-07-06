@@ -58,7 +58,11 @@ class MessierSkyChart:
             ),
             text=text_data,
             textposition='top center',
-            textfont=dict(size=6, color='lightgray'),
+            textfont=dict(
+                size=6, 
+                color='lightgray',
+                family='Arial, Helvetica, sans-serif'
+            ),
             name='Bright Stars',
             hovertemplate='<b>%{customdata[0]}</b><br>Constellation: %{customdata[1]}<br>RA: %{x:.1f}°<br>Dec: %{y:.1f}°<br>Mag: %{customdata[2]:.1f}<extra></extra>',
             customdata=list(zip(
@@ -114,7 +118,7 @@ class MessierSkyChart:
             textfont=dict(
                 size=12,
                 color='rgba(200, 200, 200, 0.8)',
-                family='Arial Black'
+                family='Arial, Helvetica, sans-serif'
             ),
             name='Constellation Labels',
             showlegend=False,
@@ -166,7 +170,11 @@ class MessierSkyChart:
                     name=obj_type,
                     text=type_data['Messier number'],
                     textposition='top center',
-                    textfont=dict(size=8, color=CHART_CONFIG['text_color']),
+                    textfont=dict(
+                        size=8, 
+                        color=CHART_CONFIG['text_color'],
+                        family='Arial, Helvetica, sans-serif'
+                    ),
                     hovertemplate=self._get_hover_template(),
                     customdata=self._get_hover_data(type_data),
                     legendgroup=category,  # Group legend items by category
@@ -198,29 +206,44 @@ class MessierSkyChart:
     def _configure_layout(self, fig):
         """Configure the chart layout and styling"""
         fig.update_layout(
-            title='Interactive Messier Sky Chart',
+            title=dict(
+                text='Interactive Messier Sky Chart',
+                font=dict(
+                    family='Georgia, "Times New Roman", Times, serif',
+                    size=24,
+                    color=CHART_CONFIG['font_color']
+                )
+            ),
             xaxis_title='Right Ascension (degrees)',
             yaxis_title='Declination (degrees)',
             xaxis=dict(
                 range=COORDINATE_CONFIG['ra_range'],
                 dtick=COORDINATE_CONFIG['ra_tick_interval'],
                 showgrid=True,
-                gridcolor=CHART_CONFIG['grid_color']
+                gridcolor=CHART_CONFIG['grid_color'],
+                titlefont=dict(family='Arial, Helvetica, sans-serif'),
+                tickfont=dict(family='Arial, Helvetica, sans-serif')
             ),
             yaxis=dict(
                 range=COORDINATE_CONFIG['dec_range'],
                 dtick=COORDINATE_CONFIG['dec_tick_interval'],
                 showgrid=True,
-                gridcolor=CHART_CONFIG['grid_color']
+                gridcolor=CHART_CONFIG['grid_color'],
+                titlefont=dict(family='Arial, Helvetica, sans-serif'),
+                tickfont=dict(family='Arial, Helvetica, sans-serif')
             ),
             plot_bgcolor=CHART_CONFIG['background_color'],
             paper_bgcolor=CHART_CONFIG['paper_color'],
-            font=dict(color=CHART_CONFIG['font_color']),
+            font=dict(
+                color=CHART_CONFIG['font_color'],
+                family='Arial, Helvetica, sans-serif'
+            ),
             legend=dict(
                 yanchor="top",
                 y=0.99,
                 xanchor="left",
-                x=1.01
+                x=1.01,
+                font=dict(family='Arial, Helvetica, sans-serif')
             ),
             width=CHART_CONFIG['default_width'],
             height=CHART_CONFIG['default_height']
