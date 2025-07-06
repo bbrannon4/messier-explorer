@@ -437,6 +437,8 @@ def print_usage_instructions():
 
 
 if __name__ == "__main__":
+    import os
+    
     # Parse command line arguments
     parser = argparse.ArgumentParser(description='Interactive Messier Sky Chart')
     parser.add_argument('--csv', help='Path to CSV file with Messier data')
@@ -446,24 +448,20 @@ if __name__ == "__main__":
     
     args = parser.parse_args()
     
-    # For deployment, check environment variables
+    # Deployment-friendly settings
     port = int(os.environ.get('PORT', args.port))
-    host = os.environ.get('HOST', args.host)
-    debug = os.environ.get('DEBUG', 'false').lower() == 'true' or args.debug
+    host = os.environ.get('HOST', '0.0.0.0' if os.environ.get('PORT') else args.host)
+    debug = args.debug and not os.environ.get('PORT')  # Never debug in production
     
-    # Print instructions
-    print_usage_instructions()
+    # Print instructions (will show in Render logs)
+    if not os.environ.get('PORT'):
+        print_usage_instructions()
     
     # Create and run app
     try:
         app = create_app(args.csv)
-        print(f"\nStarting server on http://{host}:{port}")
-        # Use app.run for newer versions of Dash
-        try:
-            app.run(debug=debug, host=host, port=port)
-        except AttributeError:
-            # Fallback for older Dash versions
-            app.run_server(debug=debug, host=host, port=port)
+        print(f"\nStarting server on {host}:{port}")
+        app.run(debug=debug, host=host, port=port)
     except KeyboardInterrupt:
         print("\nShutting down...")
     except Exception as e:
