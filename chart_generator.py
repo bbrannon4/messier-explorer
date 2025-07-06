@@ -204,7 +204,7 @@ class MessierSkyChart:
         ))
     
     def _configure_layout(self, fig):
-        """Configure the chart layout and styling"""
+        """Configure the chart layout and styling - FIXED for newer Plotly versions"""
         fig.update_layout(
             title=dict(
                 text='Interactive Messier Sky Chart',
@@ -221,7 +221,8 @@ class MessierSkyChart:
                 dtick=COORDINATE_CONFIG['ra_tick_interval'],
                 showgrid=True,
                 gridcolor=CHART_CONFIG['grid_color'],
-                titlefont=dict(family='Arial, Helvetica, sans-serif'),
+                # FIXED: Use title.font instead of titlefont
+                title=dict(font=dict(family='Arial, Helvetica, sans-serif')),
                 tickfont=dict(family='Arial, Helvetica, sans-serif')
             ),
             yaxis=dict(
@@ -229,7 +230,8 @@ class MessierSkyChart:
                 dtick=COORDINATE_CONFIG['dec_tick_interval'],
                 showgrid=True,
                 gridcolor=CHART_CONFIG['grid_color'],
-                titlefont=dict(family='Arial, Helvetica, sans-serif'),
+                # FIXED: Use title.font instead of titlefont
+                title=dict(font=dict(family='Arial, Helvetica, sans-serif')),
                 tickfont=dict(family='Arial, Helvetica, sans-serif')
             ),
             plot_bgcolor=CHART_CONFIG['background_color'],
