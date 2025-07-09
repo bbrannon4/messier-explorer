@@ -50,6 +50,63 @@ def dec_to_degrees(dec_str):
         return 0
 
 
+def parse_apparent_dimensions(dim_str):
+    """Parse apparent dimensions from various formats to decimal arc minutes
+    
+    Handles formats like:
+    - "8.0 × 6.0"
+    - "8.0×6.0" 
+    - "8.0 x 6.0"
+    - "8.0"
+    - "185.0 × 75.0"
+    
+    Returns the larger dimension (major axis) in arc minutes
+    """
+    try:
+        if pd.isna(dim_str) or str(dim_str).strip() == '':
+            return np.nan
+        
+        dim_str = str(dim_str).strip()
+        
+        # Handle × or x separators (for dimensions like "8.0 × 6.0")
+        if '×' in dim_str or 'x' in dim_str or 'X' in dim_str:
+            # Split on × or x
+            for sep in ['×', 'x', 'X']:
+                if sep in dim_str:
+                    parts = dim_str.split(sep)
+                    break
+            
+            # Clean and convert both parts
+            dims = []
+            for part in parts:
+                clean_part = part.strip().replace(',', '')
+                # Extract numbers (handle cases like "8.0'" or "8.0 arcmin")
+                import re
+                numbers = re.findall(r'\d+\.?\d*', clean_part)
+                if numbers:
+                    dims.append(float(numbers[0]))
+            
+            if len(dims) >= 2:
+                # Return the larger dimension (major axis)
+                return max(dims)
+            elif len(dims) == 1:
+                return dims[0]
+        else:
+            # Single dimension value
+            clean_str = dim_str.replace(',', '')
+            # Extract numbers
+            import re
+            numbers = re.findall(r'\d+\.?\d*', clean_str)
+            if numbers:
+                return float(numbers[0])
+        
+        return np.nan
+        
+    except Exception as e:
+        print(f"Error parsing apparent dimensions '{dim_str}': {e}")
+        return np.nan
+
+
 def load_messier_from_astropy():
     """Load Messier catalog from astronomical libraries"""
     try:
@@ -97,26 +154,26 @@ def create_complete_messier_catalog():
     
     messier_objects = [
         # Sample of well-known Messier objects - you'd expand this to all 110
-        {'Number': 1, 'Messier number': 'M1', 'Common name': 'Crab Nebula', 'Object type': 'Supernova remnant', 'Right ascension': '05h 34m 31.9s', 'Declination': '+22° 00′ 52″', 'Constellation': 'Taurus', 'Best Viewing': 'winter'},
-        {'Number': 8, 'Messier number': 'M8', 'Common name': 'Lagoon Nebula', 'Object type': 'H II region nebula', 'Right ascension': '18h 03m 37s', 'Declination': '-24° 23′ 12″', 'Constellation': 'Sagittarius', 'Best Viewing': 'summer'},
-        {'Number': 13, 'Messier number': 'M13', 'Common name': 'Hercules Cluster', 'Object type': 'Globular cluster', 'Right ascension': '16h 41m 41.2s', 'Declination': '+36° 27′ 37″', 'Constellation': 'Hercules', 'Best Viewing': 'summer'},
-        {'Number': 16, 'Messier number': 'M16', 'Common name': 'Eagle Nebula', 'Object type': 'H II region nebula with cluster', 'Right ascension': '18h 18m 48s', 'Declination': '-13° 49′ 00″', 'Constellation': 'Serpens', 'Best Viewing': 'summer'},
-        {'Number': 17, 'Messier number': 'M17', 'Common name': 'Omega Nebula', 'Object type': 'H II region nebula', 'Right ascension': '18h 20m 47s', 'Declination': '-16° 10′ 18″', 'Constellation': 'Sagittarius', 'Best Viewing': 'summer'},
-        {'Number': 20, 'Messier number': 'M20', 'Common name': 'Trifid Nebula', 'Object type': 'H II region nebula', 'Right ascension': '18h 02m 23s', 'Declination': '-23° 01′ 48″', 'Constellation': 'Sagittarius', 'Best Viewing': 'summer'},
-        {'Number': 24, 'Messier number': 'M24', 'Common name': 'Sagittarius Star Cloud', 'Object type': 'Milky Way star cloud', 'Right ascension': '18h 16m 50s', 'Declination': '-18° 33′ 00″', 'Constellation': 'Sagittarius', 'Best Viewing': 'summer'},
-        {'Number': 27, 'Messier number': 'M27', 'Common name': 'Dumbbell Nebula', 'Object type': 'Planetary nebula', 'Right ascension': '19h 59m 36.3s', 'Declination': '+22° 43′ 16″', 'Constellation': 'Vulpecula', 'Best Viewing': 'summer'},
-        {'Number': 31, 'Messier number': 'M31', 'Common name': 'Andromeda Galaxy', 'Object type': 'Spiral galaxy', 'Right ascension': '00h 42m 44.3s', 'Declination': '+41° 16′ 09″', 'Constellation': 'Andromeda', 'Best Viewing': 'autumn'},
-        {'Number': 32, 'Messier number': 'M32', 'Common name': 'Andromeda Satellite #1', 'Object type': 'Dwarf elliptical galaxy', 'Right ascension': '00h 42m 41.8s', 'Declination': '+40° 51′ 55″', 'Constellation': 'Andromeda', 'Best Viewing': 'autumn'},
-        {'Number': 42, 'Messier number': 'M42', 'Common name': 'Orion Nebula', 'Object type': 'H II region nebula', 'Right ascension': '05h 35m 17.3s', 'Declination': '-05° 23′ 13″', 'Constellation': 'Orion', 'Best Viewing': 'winter'},
-        {'Number': 43, 'Messier number': 'M43', 'Common name': 'De Mairan\'s Nebula', 'Object type': 'H II region nebula (part of the Orion Nebula)', 'Right ascension': '05h 35m 31s', 'Declination': '-05° 16′ 03″', 'Constellation': 'Orion', 'Best Viewing': 'winter'},
-        {'Number': 44, 'Messier number': 'M44', 'Common name': 'Beehive Cluster', 'Object type': 'Open cluster', 'Right ascension': '08h 40m 24s', 'Declination': '+19° 40′ 00″', 'Constellation': 'Cancer', 'Best Viewing': 'spring'},
-        {'Number': 45, 'Messier number': 'M45', 'Common name': 'Pleiades', 'Object type': 'Open cluster', 'Right ascension': '03h 47m 29s', 'Declination': '+24° 07′ 00″', 'Constellation': 'Taurus', 'Best Viewing': 'winter'},
-        {'Number': 51, 'Messier number': 'M51', 'Common name': 'Whirlpool Galaxy', 'Object type': 'Spiral galaxy', 'Right ascension': '13h 29m 52.7s', 'Declination': '+47° 11′ 43″', 'Constellation': 'Canes Venatici', 'Best Viewing': 'spring'},
-        {'Number': 57, 'Messier number': 'M57', 'Common name': 'Ring Nebula', 'Object type': 'Planetary nebula', 'Right ascension': '18h 53m 35.1s', 'Declination': '+33° 01′ 45″', 'Constellation': 'Lyra', 'Best Viewing': 'summer'},
-        {'Number': 81, 'Messier number': 'M81', 'Common name': 'Bode\'s Galaxy', 'Object type': 'Spiral galaxy', 'Right ascension': '09h 55m 33.2s', 'Declination': '+69° 03′ 55″', 'Constellation': 'Ursa Major', 'Best Viewing': 'spring'},
-        {'Number': 87, 'Messier number': 'M87', 'Common name': 'Virgo A', 'Object type': 'Elliptical galaxy', 'Right ascension': '12h 30m 49.4s', 'Declination': '+12° 23′ 28″', 'Constellation': 'Virgo', 'Best Viewing': 'spring'},
-        {'Number': 104, 'Messier number': 'M104', 'Common name': 'Sombrero Galaxy', 'Object type': 'Spiral galaxy', 'Right ascension': '12h 39m 59.4s', 'Declination': '-11° 37′ 23″', 'Constellation': 'Virgo', 'Best Viewing': 'spring'},
-        {'Number': 110, 'Messier number': 'M110', 'Common name': 'Andromeda Satellite #2', 'Object type': 'Dwarf elliptical galaxy', 'Right ascension': '00h 40m 22.1s', 'Declination': '+41° 41′ 07″', 'Constellation': 'Andromeda', 'Best Viewing': 'autumn'},
+        {'Number': 1, 'Messier number': 'M1', 'Common name': 'Crab Nebula', 'Object type': 'Supernova remnant', 'Right ascension': '05h 34m 31.9s', 'Declination': '+22° 00′ 52″', 'Constellation': 'Taurus', 'Best Viewing': 'winter', 'Apparent dimensions (arc minutes)': '6.0 × 4.0'},
+        {'Number': 8, 'Messier number': 'M8', 'Common name': 'Lagoon Nebula', 'Object type': 'H II region nebula', 'Right ascension': '18h 03m 37s', 'Declination': '-24° 23′ 12″', 'Constellation': 'Sagittarius', 'Best Viewing': 'summer', 'Apparent dimensions (arc minutes)': '90.0 × 40.0'},
+        {'Number': 13, 'Messier number': 'M13', 'Common name': 'Hercules Cluster', 'Object type': 'Globular cluster', 'Right ascension': '16h 41m 41.2s', 'Declination': '+36° 27′ 37″', 'Constellation': 'Hercules', 'Best Viewing': 'summer', 'Apparent dimensions (arc minutes)': '20.0'},
+        {'Number': 16, 'Messier number': 'M16', 'Common name': 'Eagle Nebula', 'Object type': 'H II region nebula with cluster', 'Right ascension': '18h 18m 48s', 'Declination': '-13° 49′ 00″', 'Constellation': 'Serpens', 'Best Viewing': 'summer', 'Apparent dimensions (arc minutes)': '7.0'},
+        {'Number': 17, 'Messier number': 'M17', 'Common name': 'Omega Nebula', 'Object type': 'H II region nebula', 'Right ascension': '18h 20m 47s', 'Declination': '-16° 10′ 18″', 'Constellation': 'Sagittarius', 'Best Viewing': 'summer', 'Apparent dimensions (arc minutes)': '11.0'},
+        {'Number': 20, 'Messier number': 'M20', 'Common name': 'Trifid Nebula', 'Object type': 'H II region nebula', 'Right ascension': '18h 02m 23s', 'Declination': '-23° 01′ 48″', 'Constellation': 'Sagittarius', 'Best Viewing': 'summer', 'Apparent dimensions (arc minutes)': '20.0'},
+        {'Number': 24, 'Messier number': 'M24', 'Common name': 'Sagittarius Star Cloud', 'Object type': 'Milky Way star cloud', 'Right ascension': '18h 16m 50s', 'Declination': '-18° 33′ 00″', 'Constellation': 'Sagittarius', 'Best Viewing': 'summer', 'Apparent dimensions (arc minutes)': '90.0'},
+        {'Number': 27, 'Messier number': 'M27', 'Common name': 'Dumbbell Nebula', 'Object type': 'Planetary nebula', 'Right ascension': '19h 59m 36.3s', 'Declination': '+22° 43′ 16″', 'Constellation': 'Vulpecula', 'Best Viewing': 'summer', 'Apparent dimensions (arc minutes)': '8.0 × 5.7'},
+        {'Number': 31, 'Messier number': 'M31', 'Common name': 'Andromeda Galaxy', 'Object type': 'Spiral galaxy', 'Right ascension': '00h 42m 44.3s', 'Declination': '+41° 16′ 09″', 'Constellation': 'Andromeda', 'Best Viewing': 'autumn', 'Apparent dimensions (arc minutes)': '185.0 × 75.0'},
+        {'Number': 32, 'Messier number': 'M32', 'Common name': 'Andromeda Satellite #1', 'Object type': 'Dwarf elliptical galaxy', 'Right ascension': '00h 42m 41.8s', 'Declination': '+40° 51′ 55″', 'Constellation': 'Andromeda', 'Best Viewing': 'autumn', 'Apparent dimensions (arc minutes)': '8.7 × 6.5'},
+        {'Number': 42, 'Messier number': 'M42', 'Common name': 'Orion Nebula', 'Object type': 'H II region nebula', 'Right ascension': '05h 35m 17.3s', 'Declination': '-05° 23′ 13″', 'Constellation': 'Orion', 'Best Viewing': 'winter', 'Apparent dimensions (arc minutes)': '85.0 × 60.0'},
+        {'Number': 43, 'Messier number': 'M43', 'Common name': 'De Mairan\'s Nebula', 'Object type': 'H II region nebula (part of the Orion Nebula)', 'Right ascension': '05h 35m 31s', 'Declination': '-05° 16′ 03″', 'Constellation': 'Orion', 'Best Viewing': 'winter', 'Apparent dimensions (arc minutes)': '20.0 × 15.0'},
+        {'Number': 44, 'Messier number': 'M44', 'Common name': 'Beehive Cluster', 'Object type': 'Open cluster', 'Right ascension': '08h 40m 24s', 'Declination': '+19° 40′ 00″', 'Constellation': 'Cancer', 'Best Viewing': 'spring', 'Apparent dimensions (arc minutes)': '95.0'},
+        {'Number': 45, 'Messier number': 'M45', 'Common name': 'Pleiades', 'Object type': 'Open cluster', 'Right ascension': '03h 47m 29s', 'Declination': '+24° 07′ 00″', 'Constellation': 'Taurus', 'Best Viewing': 'winter', 'Apparent dimensions (arc minutes)': '110.0'},
+        {'Number': 51, 'Messier number': 'M51', 'Common name': 'Whirlpool Galaxy', 'Object type': 'Spiral galaxy', 'Right ascension': '13h 29m 52.7s', 'Declination': '+47° 11′ 43″', 'Constellation': 'Canes Venatici', 'Best Viewing': 'spring', 'Apparent dimensions (arc minutes)': '11.2 × 6.9'},
+        {'Number': 57, 'Messier number': 'M57', 'Common name': 'Ring Nebula', 'Object type': 'Planetary nebula', 'Right ascension': '18h 53m 35.1s', 'Declination': '+33° 01′ 45″', 'Constellation': 'Lyra', 'Best Viewing': 'summer', 'Apparent dimensions (arc minutes)': '1.4 × 1.0'},
+        {'Number': 81, 'Messier number': 'M81', 'Common name': 'Bode\'s Galaxy', 'Object type': 'Spiral galaxy', 'Right ascension': '09h 55m 33.2s', 'Declination': '+69° 03′ 55″', 'Constellation': 'Ursa Major', 'Best Viewing': 'spring', 'Apparent dimensions (arc minutes)': '21.0 × 10.0'},
+        {'Number': 87, 'Messier number': 'M87', 'Common name': 'Virgo A', 'Object type': 'Elliptical galaxy', 'Right ascension': '12h 30m 49.4s', 'Declination': '+12° 23′ 28″', 'Constellation': 'Virgo', 'Best Viewing': 'spring', 'Apparent dimensions (arc minutes)': '8.3 × 6.6'},
+        {'Number': 104, 'Messier number': 'M104', 'Common name': 'Sombrero Galaxy', 'Object type': 'Spiral galaxy', 'Right ascension': '12h 39m 59.4s', 'Declination': '-11° 37′ 23″', 'Constellation': 'Virgo', 'Best Viewing': 'spring', 'Apparent dimensions (arc minutes)': '8.7 × 3.5'},
+        {'Number': 110, 'Messier number': 'M110', 'Common name': 'Andromeda Satellite #2', 'Object type': 'Dwarf elliptical galaxy', 'Right ascension': '00h 40m 22.1s', 'Declination': '+41° 41′ 07″', 'Constellation': 'Andromeda', 'Best Viewing': 'autumn', 'Apparent dimensions (arc minutes)': '19.5 × 11.5'},
     ]
     
     # Add placeholder data for missing fields
@@ -160,7 +217,8 @@ def load_messier_from_simbad():
                         'Constellation': '',
                         'Apparent magnitude': '',
                         'Distance (kly)': '',
-                        'Best Viewing': 'unknown'
+                        'Best Viewing': 'unknown',
+                        'Apparent dimensions (arc minutes)': ''
                     })
                     successful_queries += 1
                     print(f"Successfully queried M{i}")
@@ -209,11 +267,20 @@ def load_messier_data(csv_path=None, use_astronomical_data=False):
 
 
 def process_coordinates(data):
-    """Convert RA/Dec strings to decimal degrees"""
-    print("Processing coordinates...")
+    """Convert RA/Dec strings to decimal degrees and process apparent dimensions"""
+    print("Processing coordinates and dimensions...")
     data = data.copy()
     data['ra_deg'] = data['Right ascension'].apply(ra_to_degrees)
     data['dec_deg'] = data['Declination'].apply(dec_to_degrees)
+    
+    # Process apparent dimensions if the column exists
+    if 'Apparent dimensions (arc minutes)' in data.columns:
+        data['dimensions_arcmin'] = data['Apparent dimensions (arc minutes)'].apply(parse_apparent_dimensions)
+        print(f"Processed apparent dimensions for {(~data['dimensions_arcmin'].isna()).sum()} objects")
+    else:
+        # Create a placeholder column with reasonable default values
+        print("No 'Apparent dimensions (arc minutes)' column found, creating placeholder values")
+        data['dimensions_arcmin'] = 10.0  # Default 10 arcmin
     
     # Validate coordinates
     valid_coords = (data['ra_deg'] >= 0) & (data['ra_deg'] <= 360) & \
@@ -663,19 +730,45 @@ def get_filter_options(data):
             # Add category header (we'll handle this in the UI)
             ordered_types.extend(sorted(categorized_types[category]))
     
+    # Get dimensions range for the slider
+    if 'dimensions_arcmin' in data.columns:
+        valid_dims = data['dimensions_arcmin'].dropna()
+        if len(valid_dims) > 0:
+            dim_min = float(valid_dims.min())
+            dim_max = float(valid_dims.max())
+            # Add some padding to the range
+            dim_range = [max(0, dim_min - 1), dim_max + 1]
+        else:
+            dim_range = [0.0, 200.0]  # Default range
+    else:
+        dim_range = [0.0, 200.0]  # Default range
+    
     return {
         'object_types': ordered_types,
         'object_types_by_category': categorized_types,
         'constellations': sorted(data['Constellation'].dropna().unique()),
-        'seasons': sorted(data['Best Viewing'].dropna().unique())
+        'seasons': sorted(data['Best Viewing'].dropna().unique()),
+        'dimensions_range': dim_range
     }
 
 
-def filter_data(data, selected_types, selected_constellations, selected_seasons):
-    """Filter data based on selected criteria"""
+def filter_data(data, selected_types, selected_constellations, selected_seasons, dimensions_range=None):
+    """Filter data based on selected criteria including apparent dimensions"""
     filtered_data = data[
         (data['Object type'].isin(selected_types)) &
         (data['Constellation'].isin(selected_constellations)) &
         (data['Best Viewing'].isin(selected_seasons))
     ]
+    
+    # Apply dimensions filter if provided and the column exists
+    if dimensions_range is not None and 'dimensions_arcmin' in data.columns:
+        min_dim, max_dim = dimensions_range
+        # Include objects where dimensions are within range OR where dimensions are NaN
+        dimension_mask = (
+            (filtered_data['dimensions_arcmin'] >= min_dim) & 
+            (filtered_data['dimensions_arcmin'] <= max_dim)
+        ) | filtered_data['dimensions_arcmin'].isna()
+        
+        filtered_data = filtered_data[dimension_mask]
+    
     return filtered_data

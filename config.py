@@ -161,7 +161,7 @@ COORDINATE_CONFIG = {
     'dec_tick_interval': 30
 }
 
-# Sample data for testing (replace with your CSV)
+# Sample data for testing (replace with your CSV) - NOW WITH APPARENT DIMENSIONS
 SAMPLE_MESSIER_DATA = {
     'Number': [31, 32, 1, 13, 42, 57, 27, 81, 51, 104],
     'Messier number': ['M31', 'M32', 'M1', 'M13', 'M42', 'M57', 'M27', 'M81', 'M51', 'M104'],
@@ -173,5 +173,6 @@ SAMPLE_MESSIER_DATA = {
     'Apparent magnitude': [3.4, 8.1, 8.4, 5.8, 4.0, 8.8, 7.5, 6.9, 8.4, 8.0],
     'Right ascension': ['00h 42m 44.3s', '00h 42m 41.8s', '05h 34m 31.9s', '16h 41m 41.2s', '05h 35m 17.3s', '18h 53m 35.1s', '19h 59m 36.3s', '09h 55m 33.2s', '13h 29m 52.7s', '12h 39m 59.4s'],
     'Declination': ['+41° 16′ 09″', '+40° 51′ 55″', '+22° 00′ 52″', '+36° 27′ 37″', '-05° 23′ 13″', '+33° 01′ 45″', '+22° 43′ 16″', '+69° 03′ 55″', '+47° 11′ 43″', '-11° 37′ 23″'],
-    'Best Viewing': ['autumn', 'autumn', 'winter', 'summer', 'winter', 'summer', 'summer', 'spring', 'spring', 'spring']
+    'Best Viewing': ['autumn', 'autumn', 'winter', 'summer', 'winter', 'summer', 'summer', 'spring', 'spring', 'spring'],
+    'Apparent dimensions (arc minutes)': ['185.0 × 75.0', '8.7 × 6.5', '6.0 × 4.0', '20.0', '85.0 × 60.0', '1.4 × 1.0', '8.0 × 5.7', '21.0 × 10.0', '11.2 × 6.9', '8.7 × 3.5']
 }

@@ -37,18 +37,20 @@ def create_app(csv_path=None):
         [Input("object-type-filter", "value"),
          Input("constellation-filter", "value"),
          Input("season-filter", "value"),
+         Input("dimensions-range-slider", "value"),
          Input("star-labels-toggle", "value"),
          Input("constellation-lines-toggle", "value"),
          Input("constellation-labels-toggle", "value")]
     )
     def update_chart(selected_types, selected_constellations, selected_seasons, 
-                    show_star_labels, show_constellation_lines, show_constellation_labels):
+                    dimensions_range, show_star_labels, show_constellation_lines, show_constellation_labels):
         """Update chart based on filter selections"""
         filtered_data = filter_data(
             messier_data, 
             selected_types, 
             selected_constellations, 
-            selected_seasons
+            selected_seasons,
+            dimensions_range
         )
         
         # Convert checkbox values to booleans
@@ -62,15 +64,17 @@ def create_app(csv_path=None):
         Output("object-count", "children"),
         [Input("object-type-filter", "value"),
          Input("constellation-filter", "value"),
-         Input("season-filter", "value")]
+         Input("season-filter", "value"),
+         Input("dimensions-range-slider", "value")]
     )
-    def update_object_count(selected_types, selected_constellations, selected_seasons):
+    def update_object_count(selected_types, selected_constellations, selected_seasons, dimensions_range):
         """Update object count display"""
         filtered_data = filter_data(
             messier_data, 
             selected_types, 
             selected_constellations, 
-            selected_seasons
+            selected_seasons,
+            dimensions_range
         )
         return f"Showing {len(filtered_data)} of {len(messier_data)} objects"
     
@@ -117,14 +121,30 @@ def create_app(csv_path=None):
             return new_state, icon_text
         return is_open, "▶ "
     
+    @app.callback(
+        [Output("dimensions-collapse", "is_open"),
+         Output("dimensions-icon", "children")],
+        Input("dimensions-collapse-button", "n_clicks"),
+        State("dimensions-collapse", "is_open"),
+        prevent_initial_call=True
+    )
+    def toggle_dimensions_collapse(n_clicks, is_open):
+        if n_clicks:
+            new_state = not is_open
+            icon_text = "▼ " if new_state else "▶ "
+            return new_state, icon_text
+        return is_open, "▶ "
+    
     # Expand/Collapse All buttons
     @app.callback(
         [Output("object-type-collapse", "is_open", allow_duplicate=True),
          Output("constellation-collapse", "is_open", allow_duplicate=True),
          Output("season-collapse", "is_open", allow_duplicate=True),
+         Output("dimensions-collapse", "is_open", allow_duplicate=True),
          Output("object-type-icon", "children", allow_duplicate=True),
          Output("constellation-icon", "children", allow_duplicate=True),
-         Output("season-icon", "children", allow_duplicate=True)],
+         Output("season-icon", "children", allow_duplicate=True),
+         Output("dimensions-icon", "children", allow_duplicate=True)],
         [Input("expand-all-filters", "n_clicks"),
          Input("collapse-all-filters", "n_clicks")],
         prevent_initial_call=True
@@ -138,10 +158,10 @@ def create_app(csv_path=None):
         
         if button_id == "expand-all-filters":
             icon_text = "▼ "
-            return True, True, True, icon_text, icon_text, icon_text
+            return True, True, True, True, icon_text, icon_text, icon_text, icon_text
         elif button_id == "collapse-all-filters":
             icon_text = "▶ "
-            return False, False, False, icon_text, icon_text, icon_text
+            return False, False, False, False, icon_text, icon_text, icon_text, icon_text
         
         return dash.no_update
     
@@ -166,6 +186,13 @@ def create_app(csv_path=None):
     )
     def update_season_badge(selected_seasons):
         return f"{len(selected_seasons)} selected"
+    
+    @app.callback(
+        Output("dimensions-badge", "children"),
+        Input("dimensions-range-slider", "value")
+    )
+    def update_dimensions_badge(dimensions_range):
+        return f"{dimensions_range[0]:.1f} - {dimensions_range[1]:.1f} arcmin"
     
     @app.callback(
         Output("object-type-filter", "value"),
@@ -271,7 +298,7 @@ def create_layout(filter_options):
                     ], width=8)
                 ]),
                 
-                # Collapsible Filters section
+                # Collapsible Filters section - now with 4 columns
                 dbc.Row([
                     dbc.Col([
                         # Object Types Filter
@@ -310,7 +337,7 @@ def create_layout(filter_options):
                                 ])
                             ], id="object-type-collapse", is_open=False)
                         ], className="mb-3")
-                    ], width=4),
+                    ], width=3),
                     
                     dbc.Col([
                         # Constellations Filter
@@ -349,7 +376,7 @@ def create_layout(filter_options):
                                 ])
                             ], id="constellation-collapse", is_open=False)
                         ], className="mb-3")
-                    ], width=4),
+                    ], width=3),
                     
                     dbc.Col([
                         # Seasons Filter
@@ -388,7 +415,49 @@ def create_layout(filter_options):
                                 ])
                             ], id="season-collapse", is_open=False)
                         ], className="mb-3")
-                    ], width=4),
+                    ], width=3),
+                    
+                    dbc.Col([
+                        # NEW: Apparent Dimensions Filter
+                        dbc.Card([
+                            dbc.CardHeader([
+                                dbc.Button(
+                                    [
+                                        html.Span("▶ ", id="dimensions-icon",
+                                                style={"font-family": "Arial, Helvetica, sans-serif"}),
+                                        html.Span("Apparent Size", className="fw-bold",
+                                                style={"font-family": "Arial, Helvetica, sans-serif"}),
+                                        dbc.Badge(f"{filter_options['dimensions_range'][0]:.1f} - {filter_options['dimensions_range'][1]:.1f} arcmin", 
+                                                id="dimensions-badge", color="primary", className="ms-2")
+                                    ],
+                                    id="dimensions-collapse-button",
+                                    color="link",
+                                    className="text-start w-100 text-decoration-none",
+                                    style={"border": "none", "padding": "0.5rem",
+                                          "font-family": "Arial, Helvetica, sans-serif"}
+                                )
+                            ], style={"padding": "0"}),
+                            dbc.Collapse([
+                                dbc.CardBody([
+                                    html.P("Filter by apparent dimensions (arc minutes):", 
+                                          className="mb-2", 
+                                          style={"font-family": "Arial, Helvetica, sans-serif", "font-size": "0.9rem"}),
+                                    dcc.RangeSlider(
+                                        id="dimensions-range-slider",
+                                        min=filter_options['dimensions_range'][0],
+                                        max=filter_options['dimensions_range'][1],
+                                        step=0.1,
+                                        value=filter_options['dimensions_range'],
+                                        marks={
+                                            filter_options['dimensions_range'][0]: f"{filter_options['dimensions_range'][0]:.1f}",
+                                            filter_options['dimensions_range'][1]: f"{filter_options['dimensions_range'][1]:.1f}"
+                                        },
+                                        tooltip={"placement": "bottom", "always_visible": True}
+                                    )
+                                ])
+                            ], id="dimensions-collapse", is_open=False)
+                        ], className="mb-3")
+                    ], width=3),
                 ]),
                 
                 # Object count display
@@ -427,7 +496,7 @@ def print_usage_instructions():
     print("\n3. Or run with sample data if no CSV is found:")
     print("   python main.py")
     print("\n4. Open the URL shown in terminal (usually http://127.0.0.1:8050)")
-    print("\n5. Use the checkboxes to filter by object type, constellation, or season")
+    print("\n5. Use the checkboxes to filter by object type, constellation, season, or apparent size")
     print("\nFile Structure:")
     print("- main.py: Main application")
     print("- data_utils.py: Data processing functions")
