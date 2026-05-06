@@ -85,6 +85,23 @@
         <h1 class="text-center mb-4">Interactive Messier Sky Chart</h1>
         <hr>
 
+        <!-- Projection selector -->
+        <div class="row mb-3 align-items-center">
+          <div class="col-auto">
+            <span style="color:#aabbcc; font-size:0.875rem;">Projection:</span>
+          </div>
+          <div class="col-auto">
+            <div class="btn-group btn-group-sm" role="group" aria-label="Map projection">
+              <input type="radio" class="btn-check" name="projection" id="proj-equirect" value="equirectangular" autocomplete="off" checked>
+              <label class="btn btn-outline-light" for="proj-equirect">Equirectangular</label>
+              <input type="radio" class="btn-check" name="projection" id="proj-mollweide" value="mollweide" autocomplete="off">
+              <label class="btn btn-outline-light" for="proj-mollweide">Mollweide</label>
+              <input type="radio" class="btn-check" name="projection" id="proj-stereo" value="stereographic" autocomplete="off">
+              <label class="btn btn-outline-light" for="proj-stereo">Stereographic</label>
+            </div>
+          </div>
+        </div>
+
         <!-- Top controls row -->
         <div class="row mb-3 align-items-start">
           <div class="col-md-4 mb-2">
