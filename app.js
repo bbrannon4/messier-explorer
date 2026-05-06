@@ -679,7 +679,7 @@ function buildTraces(data, options) {
         customdata: objects.map(o => [
           o.commonName, o.objectType, o.constellation,
           o.magnitude, o.distance, o.bestViewing,
-          o.raDeg, o.decDeg,
+          o.raDeg, o.decDeg, o.dimensions,
         ]),
         legendgroup: category,
         legendgrouptitle: { text: category },
@@ -714,6 +714,87 @@ function getAltitudeDeg(raDeg, decDeg, lstDeg, latDeg) {
   return Math.asin(
     Math.sin(latR) * Math.sin(decR) + Math.cos(latR) * Math.cos(decR) * Math.cos(haR)
   ) * 180 / Math.PI;
+}
+
+// ─── Detail panel ────────────────────────────────────────────────────────────
+
+async function fetchWikipediaData(messierNumber) {
+  try {
+    const resp = await fetch(
+      `https://en.wikipedia.org/api/rest_v1/page/summary/Messier_${messierNumber}`
+    );
+    if (!resp.ok) return null;
+    return await resp.json();
+  } catch {
+    return null;
+  }
+}
+
+function closeDetailPanel() {
+  document.getElementById('detail-panel').classList.remove('open');
+  document.getElementById('panel-backdrop').classList.remove('open');
+}
+
+function openDetailPanel(messierNum, commonName, objectType, constellation, magnitude, distance, bestViewing, dimensions) {
+  const num = messierNum.replace(/^M/i, '');
+
+  document.getElementById('panel-messier-num').textContent = messierNum;
+  document.getElementById('panel-title').textContent = (commonName && commonName !== '–') ? commonName : messierNum;
+
+  const season = bestViewing ? bestViewing.charAt(0).toUpperCase() + bestViewing.slice(1) : '—';
+  document.getElementById('panel-stats').innerHTML = [
+    ['Type',        objectType],
+    ['Constellation', constellation],
+    ['Magnitude',   magnitude],
+    ['Distance',    distance ? `${distance} kly` : '—'],
+    ['Size',        dimensions || '—'],
+    ['Best Viewing', season],
+  ].map(([label, val]) =>
+    `<div class="stat-card"><div class="stat-label">${label}</div><div class="stat-value">${val || '—'}</div></div>`
+  ).join('');
+
+  // Reset image + description to loading state
+  const imgEl   = document.getElementById('panel-image');
+  const phEl    = document.getElementById('panel-image-placeholder');
+  imgEl.style.display = 'none';
+  imgEl.src = '';
+  phEl.style.display  = 'flex';
+  phEl.textContent    = 'Loading image…';
+  document.getElementById('panel-description').textContent = '';
+  document.getElementById('panel-wiki-link').style.display = 'none';
+
+  // Open panel
+  document.getElementById('detail-panel').classList.add('open');
+  document.getElementById('panel-backdrop').classList.add('open');
+
+  // Fetch Wikipedia data asynchronously
+  fetchWikipediaData(num).then(data => {
+    if (!data) {
+      phEl.textContent = 'No image available';
+      document.getElementById('panel-description').textContent = 'Description unavailable.';
+      return;
+    }
+
+    // Image — request 400px wide thumbnail
+    const rawSrc = data.thumbnail?.source;
+    if (rawSrc) {
+      const src = rawSrc.replace(/\/\d+px-/, '/400px-');
+      imgEl.onload  = () => { phEl.style.display = 'none'; imgEl.style.display = ''; };
+      imgEl.onerror = () => { imgEl.src = rawSrc; }; // fall back to original size
+      imgEl.src = src;
+    } else {
+      phEl.textContent = 'No image available';
+    }
+
+    document.getElementById('panel-description').textContent = data.extract || '';
+
+    const wikiUrl = data.content_urls?.desktop?.page;
+    if (wikiUrl) {
+      const link = document.getElementById('panel-wiki-link');
+      link.href = wikiUrl;
+      link.style.display = '';
+    }
+  });
 }
 
 // ─── Magnitude scaling ────────────────────────────────────────────────────────
@@ -779,7 +860,7 @@ function updateChart() {
   updateLocationTimeDisplay();
   Plotly.react('sky-chart', buildTraces(filtered, options), getLayout(), PLOTLY_CONFIG);
   document.getElementById('object-count').textContent =
-    `Showing ${filtered.length} of ${allData.length} objects`;
+    `Showing ${filtered.length} of ${allData.length} objects · click any object for details`;
   document.getElementById('type-badge').textContent   = `${selectedTypes.size} selected`;
   document.getElementById('const-badge').textContent  = `${selectedConstellations.size} selected`;
   document.getElementById('season-badge').textContent = `${selectedSeasons.size} selected`;
@@ -894,6 +975,7 @@ function parseCSV(csvText) {
     constellation: (row['Constellation']      || 'Unknown').trim(),
     magnitude:     (row['Apparent magnitude'] || '?').toString().trim(),
     magnitudeVal:  parseFloat(row['Apparent magnitude']) || 0,
+    dimensions:    (row['Apparent dimensions (arc minutes)'] || '').trim(),
     bestViewing:   (row['Best Viewing']       || 'unknown').trim().toLowerCase(),
     raDeg:  raToDegrees(row['Right ascension']),
     decDeg: decToDegrees(row['Declination']),
@@ -1034,6 +1116,19 @@ async function init() {
 
   document.getElementById('loading-msg').remove();
   updateChart();
+
+  // Detail panel — close controls
+  document.getElementById('close-panel').addEventListener('click', closeDetailPanel);
+  document.getElementById('panel-backdrop').addEventListener('click', closeDetailPanel);
+
+  // Plotly click → open detail panel for Messier objects
+  // customdata length 9 = Messier object; length 5 = bright star
+  document.getElementById('sky-chart').on('plotly_click', data => {
+    const pt = data.points[0];
+    if (!pt.customdata || pt.customdata.length < 9) return;
+    const [commonName, objectType, constellation, magnitude, distance, bestViewing, , , dimensions] = pt.customdata;
+    openDetailPanel(pt.text, commonName, objectType, constellation, magnitude, distance, bestViewing, dimensions);
+  });
 }
 
 document.addEventListener('DOMContentLoaded', init);
