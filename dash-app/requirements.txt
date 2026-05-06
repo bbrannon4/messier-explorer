@@ -1,0 +1,12 @@
+# requirements.txt
+# Dependencies for the Interactive Messier Sky Chart
+
+pandas>=1.5.0
+plotly>=5.15.0
+dash>=2.10.0
+dash-bootstrap-components>=1.4.0
+numpy>=1.24.0
+
+# Astronomical data sources (optional)
+astropy>=5.0.0
+astroquery>=0.4.6

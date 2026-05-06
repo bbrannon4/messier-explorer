@@ -1,0 +1,206 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Interactive Messier Sky Chart</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+  <style>
+    body {
+      background-color: #0B1426;
+      color: white;
+      font-family: Arial, Helvetica, sans-serif;
+    }
+    h1 {
+      font-family: Georgia, 'Times New Roman', Times, serif;
+      color: white;
+    }
+    hr { border-color: #2a3a60; }
+
+    .filter-card {
+      background-color: #1a2540;
+      border-color: #2a3a60;
+    }
+    .filter-card .card-header {
+      background-color: #1a2540;
+      border-bottom-color: #2a3a60;
+      padding: 0;
+    }
+    .filter-card .card-body {
+      background-color: #1a2540;
+    }
+
+    .collapse-toggle {
+      color: #aabbcc;
+      text-decoration: none;
+      width: 100%;
+      text-align: left;
+      padding: 0.5rem;
+      border: none;
+      background: none;
+      font-family: Arial, Helvetica, sans-serif;
+    }
+    .collapse-toggle:hover { color: white; }
+
+    .filter-scroll {
+      max-height: 250px;
+      overflow-y: auto;
+    }
+    .filter-scroll::-webkit-scrollbar { width: 6px; }
+    .filter-scroll::-webkit-scrollbar-track { background: #1a2540; }
+    .filter-scroll::-webkit-scrollbar-thumb { background: #4a5a80; border-radius: 3px; }
+
+    .form-check-label { color: #cccccc; font-size: 0.85rem; }
+    .form-check-input {
+      background-color: #2a3a60;
+      border-color: #4a5a80;
+    }
+    .form-check-input:checked {
+      background-color: #0d6efd;
+      border-color: #0d6efd;
+    }
+
+    #object-count {
+      background-color: #1a2540;
+      border-color: #2a3a60;
+      color: #87ceeb;
+    }
+    #sky-chart { background-color: #0B1426; }
+
+    #loading-msg {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      height: 400px;
+      color: #87ceeb;
+      font-size: 1.2rem;
+    }
+  </style>
+</head>
+<body>
+  <div class="container-fluid py-4">
+    <div class="row">
+      <div class="col-12">
+
+        <h1 class="text-center mb-4">Interactive Messier Sky Chart</h1>
+        <hr>
+
+        <!-- Top controls row -->
+        <div class="row mb-3 align-items-start">
+          <div class="col-md-4 mb-2">
+            <div class="btn-group btn-group-sm">
+              <button class="btn btn-outline-info" id="expand-all">Expand All Filters</button>
+              <button class="btn btn-outline-secondary" id="collapse-all">Collapse All Filters</button>
+            </div>
+          </div>
+          <div class="col-md-8">
+            <div class="form-check mb-1">
+              <input class="form-check-input" type="checkbox" id="show-star-labels" checked>
+              <label class="form-check-label" for="show-star-labels">Show star labels</label>
+            </div>
+            <div class="form-check mb-1">
+              <input class="form-check-input" type="checkbox" id="show-constellation-lines" checked>
+              <label class="form-check-label" for="show-constellation-lines">Show constellation lines</label>
+            </div>
+            <div class="form-check">
+              <input class="form-check-input" type="checkbox" id="show-constellation-names" checked>
+              <label class="form-check-label" for="show-constellation-names">Show constellation names</label>
+            </div>
+          </div>
+        </div>
+
+        <!-- Filter panels -->
+        <div class="row mb-3">
+          <!-- Object Types -->
+          <div class="col-md-4 mb-3">
+            <div class="card filter-card h-100">
+              <div class="card-header">
+                <button class="collapse-toggle" data-bs-toggle="collapse" data-bs-target="#type-collapse" aria-expanded="false">
+                  <span class="toggle-icon" id="type-icon">▶ </span>
+                  <strong>Object Types</strong>
+                  <span class="badge bg-primary ms-2" id="type-badge">0 selected</span>
+                </button>
+              </div>
+              <div class="collapse" id="type-collapse">
+                <div class="card-body p-2">
+                  <div class="btn-group btn-group-sm mb-2">
+                    <button class="btn btn-outline-primary btn-sm" id="select-all-types">Select All</button>
+                    <button class="btn btn-outline-secondary btn-sm" id="deselect-all-types">Deselect All</button>
+                  </div>
+                  <div id="type-checkboxes" class="filter-scroll"></div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Constellations -->
+          <div class="col-md-4 mb-3">
+            <div class="card filter-card h-100">
+              <div class="card-header">
+                <button class="collapse-toggle" data-bs-toggle="collapse" data-bs-target="#const-collapse" aria-expanded="false">
+                  <span class="toggle-icon" id="const-icon">▶ </span>
+                  <strong>Constellations</strong>
+                  <span class="badge bg-primary ms-2" id="const-badge">0 selected</span>
+                </button>
+              </div>
+              <div class="collapse" id="const-collapse">
+                <div class="card-body p-2">
+                  <div class="btn-group btn-group-sm mb-2">
+                    <button class="btn btn-outline-primary btn-sm" id="select-all-const">Select All</button>
+                    <button class="btn btn-outline-secondary btn-sm" id="deselect-all-const">Deselect All</button>
+                  </div>
+                  <div id="const-checkboxes" class="filter-scroll"></div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Seasons -->
+          <div class="col-md-4 mb-3">
+            <div class="card filter-card h-100">
+              <div class="card-header">
+                <button class="collapse-toggle" data-bs-toggle="collapse" data-bs-target="#season-collapse" aria-expanded="false">
+                  <span class="toggle-icon" id="season-icon">▶ </span>
+                  <strong>Best Viewing Season</strong>
+                  <span class="badge bg-primary ms-2" id="season-badge">0 selected</span>
+                </button>
+              </div>
+              <div class="collapse" id="season-collapse">
+                <div class="card-body p-2">
+                  <div class="btn-group btn-group-sm mb-2">
+                    <button class="btn btn-outline-primary btn-sm" id="select-all-seasons">Select All</button>
+                    <button class="btn btn-outline-secondary btn-sm" id="deselect-all-seasons">Deselect All</button>
+                  </div>
+                  <div id="season-checkboxes" class="filter-scroll"></div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Object count -->
+        <div class="row mb-3">
+          <div class="col-12">
+            <div class="alert mb-0 text-center" id="object-count">Loading catalog…</div>
+          </div>
+        </div>
+
+        <!-- Chart -->
+        <div class="row">
+          <div class="col-12">
+            <div id="sky-chart" style="height: 800px;">
+              <div id="loading-msg">Loading star chart…</div>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+  <script src="https://cdn.plot.ly/plotly-2.27.0.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
