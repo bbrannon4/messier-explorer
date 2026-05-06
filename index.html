@@ -137,7 +137,6 @@
           <div class="col" id="tonights-sky-info" style="display:none;">
             <span id="location-status" style="color:#87ceeb; font-size:0.85rem;"></span>
             <span id="location-time" style="color:#aabbcc; font-size:0.8rem; margin-left:1rem;"></span>
-            <button class="btn btn-sm btn-outline-secondary ms-2" id="change-location" style="font-size:0.75rem; padding:1px 6px;">Change location</button>
           </div>
         </div>
         <div id="manual-location-row" class="row mb-3" style="display:none;">
@@ -148,6 +147,7 @@
               <span class="input-group-text" style="background:#1a2540;border-color:#2a3a60;color:#aabbcc;">Lon</span>
               <input type="number" class="form-control" id="manual-lon" placeholder="-74.0" min="-180" max="180" step="0.1" style="background:#1a2540;border-color:#2a3a60;color:white;width:90px;">
               <button class="btn btn-primary btn-sm" id="apply-location">Apply</button>
+              <button class="btn btn-outline-secondary btn-sm" id="detect-location" title="Request location from browser">📍 Detect</button>
             </div>
           </div>
           <div class="col-auto align-self-center">

@@ -943,11 +943,25 @@ async function init() {
   function applyLocation(lat, lon) {
     userLatitude  = lat;
     userLongitude = lon;
+    document.getElementById('manual-lat').value = lat.toFixed(4);
+    document.getElementById('manual-lon').value = lon.toFixed(4);
     const latStr = `${Math.abs(lat).toFixed(2)}°${lat >= 0 ? 'N' : 'S'}`;
     const lonStr = `${Math.abs(lon).toFixed(2)}°${lon >= 0 ? 'E' : 'W'}`;
     statusEl.textContent = `📍 ${latStr}, ${lonStr}`;
-    manualEl.style.display = 'none';
     updateChart();
+  }
+
+  function tryGeolocation() {
+    if (!navigator.geolocation) {
+      statusEl.textContent = 'Geolocation not supported — enter coordinates below';
+      return;
+    }
+    statusEl.textContent = 'Requesting location…';
+    navigator.geolocation.getCurrentPosition(
+      pos  => applyLocation(pos.coords.latitude, pos.coords.longitude),
+      ()   => { statusEl.textContent = 'Location denied — enter coordinates below'; },
+      { timeout: 10000 }
+    );
   }
 
   document.getElementById('apply-location').addEventListener('click', () => {
@@ -958,36 +972,24 @@ async function init() {
     }
   });
 
-  document.getElementById('change-location').addEventListener('click', () => {
-    manualEl.style.display = '';
-  });
+  document.getElementById('detect-location').addEventListener('click', tryGeolocation);
 
-  document.getElementById('tonights-sky-mode').addEventListener('change', async e => {
+  document.getElementById('tonights-sky-mode').addEventListener('change', e => {
     tonightsMode = e.target.checked;
     if (!tonightsMode) {
       infoEl.style.display   = 'none';
       manualEl.style.display = 'none';
       userLatitude  = null;
       userLongitude = null;
+      document.getElementById('location-time').textContent = '';
       updateChart();
       return;
     }
-    infoEl.style.display = '';
-    statusEl.textContent = 'Getting location…';
-    document.getElementById('location-time').textContent = '';
-    if (!navigator.geolocation) {
-      statusEl.textContent = 'Geolocation unavailable — enter coordinates:';
-      manualEl.style.display = '';
-      return;
-    }
-    navigator.geolocation.getCurrentPosition(
-      pos => applyLocation(pos.coords.latitude, pos.coords.longitude),
-      ()  => {
-        statusEl.textContent = 'Location denied — enter coordinates:';
-        manualEl.style.display = '';
-      },
-      { timeout: 10000 }
-    );
+    // Always show the input form immediately so the user has something to interact with
+    infoEl.style.display   = '';
+    manualEl.style.display = '';
+    // Also try geolocation in the background — will auto-fill the fields if granted
+    tryGeolocation();
   });
 
   // Projection selector
