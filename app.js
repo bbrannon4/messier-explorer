@@ -636,13 +636,16 @@ function buildTraces(data, options) {
       const objects = byCategory[category][objType];
       const style   = getObjectStyle(objType);
       const objPts  = objects.map(o => projectPoint(o.raDeg, o.decDeg));
+      const markerSize = options.scaleSizeByMag
+        ? objects.map(o => magToSize(o.magnitudeVal))
+        : style.size;
       traces.push({
         type: 'scatter',
         x: objPts.map(p => p.x),
         y: objPts.map(p => p.y),
         mode: 'markers+text',
         marker: {
-          size: style.size, color: style.color, symbol: style.symbol,
+          size: markerSize, color: style.color, symbol: style.symbol,
           line: { width: 1, color: 'white' },
         },
         name: objType,
@@ -672,6 +675,15 @@ function buildTraces(data, options) {
   return traces;
 }
 
+// ─── Magnitude scaling ────────────────────────────────────────────────────────
+
+// Map apparent magnitude to marker size. Lower mag = brighter = larger dot.
+// Messier range is roughly 1.6 (Pleiades) to 10.1 (M76).
+function magToSize(mag) {
+  const t = Math.max(0, Math.min(1, (mag - 1.5) / 9.0)); // 0=brightest, 1=faintest
+  return Math.round(20 - t * 15); // 20 (bright) down to 5 (faint)
+}
+
 // ─── State & filter management ────────────────────────────────────────────────
 
 let allData          = [];
@@ -681,12 +693,17 @@ let allSeasons       = [];
 let selectedTypes         = new Set();
 let selectedConstellations = new Set();
 let selectedSeasons       = new Set();
+let magMin = 0;
+let magMax = 12;
+let scaleSizeByMag = false;
 
 function getFilteredData() {
   return allData.filter(obj =>
     selectedTypes.has(obj.objectType) &&
     selectedConstellations.has(obj.constellation) &&
-    selectedSeasons.has(obj.bestViewing)
+    selectedSeasons.has(obj.bestViewing) &&
+    obj.magnitudeVal >= magMin &&
+    obj.magnitudeVal <= magMax
   );
 }
 
@@ -696,6 +713,7 @@ function updateChart() {
     showStarLabels:          document.getElementById('show-star-labels').checked,
     showConstellationLines:  document.getElementById('show-constellation-lines').checked,
     showConstellationLabels: document.getElementById('show-constellation-names').checked,
+    scaleSizeByMag,
   };
   Plotly.react('sky-chart', buildTraces(filtered, options), getLayout(), PLOTLY_CONFIG);
   document.getElementById('object-count').textContent =
@@ -813,6 +831,7 @@ function parseCSV(csvText) {
     distance:      (row['Distance (kly)']     || '?').trim(),
     constellation: (row['Constellation']      || 'Unknown').trim(),
     magnitude:     (row['Apparent magnitude'] || '?').toString().trim(),
+    magnitudeVal:  parseFloat(row['Apparent magnitude']) || 0,
     bestViewing:   (row['Best Viewing']       || 'unknown').trim().toLowerCase(),
     raDeg:  raToDegrees(row['Right ascension']),
     decDeg: decToDegrees(row['Declination']),
@@ -826,6 +845,33 @@ async function init() {
   ['show-star-labels', 'show-constellation-lines', 'show-constellation-names'].forEach(id =>
     document.getElementById(id).addEventListener('change', updateChart)
   );
+
+  // Magnitude range slider
+  const magMinEl    = document.getElementById('mag-min');
+  const magMaxEl    = document.getElementById('mag-max');
+  const magMinLabel = document.getElementById('mag-min-label');
+  const magMaxLabel = document.getElementById('mag-max-label');
+
+  magMinEl.addEventListener('input', () => {
+    magMin = parseFloat(magMinEl.value);
+    if (magMin > magMax) { magMax = magMin; magMaxEl.value = magMin; }
+    magMinLabel.textContent = magMin.toFixed(1);
+    magMaxLabel.textContent = magMax.toFixed(1);
+    updateChart();
+  });
+  magMaxEl.addEventListener('input', () => {
+    magMax = parseFloat(magMaxEl.value);
+    if (magMax < magMin) { magMin = magMax; magMinEl.value = magMax; }
+    magMinLabel.textContent = magMin.toFixed(1);
+    magMaxLabel.textContent = magMax.toFixed(1);
+    updateChart();
+  });
+
+  // Scale-by-magnitude toggle
+  document.getElementById('scale-by-magnitude').addEventListener('change', e => {
+    scaleSizeByMag = e.target.checked;
+    updateChart();
+  });
 
   // Projection selector
   document.querySelectorAll('input[name="projection"]').forEach(radio =>
