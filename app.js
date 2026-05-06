@@ -639,14 +639,29 @@ function buildTraces(data, options) {
       const markerSize = options.scaleSizeByMag
         ? objects.map(o => magToSize(o.magnitudeVal))
         : style.size;
+
+      // Tonight's Sky: color above-horizon objects normally, gray out below-horizon
+      let markerColor     = style.color;
+      let markerLineColor = 'white';
+      if (options.lst !== null) {
+        markerColor = objects.map(o => {
+          const alt = getAltitudeDeg(o.raDeg, o.decDeg, options.lst, options.lat);
+          return alt > -0.5 ? style.color : 'rgba(80,80,80,0.22)';
+        });
+        markerLineColor = objects.map(o => {
+          const alt = getAltitudeDeg(o.raDeg, o.decDeg, options.lst, options.lat);
+          return alt > -0.5 ? 'rgba(255,255,255,0.8)' : 'rgba(80,80,80,0.22)';
+        });
+      }
+
       traces.push({
         type: 'scatter',
         x: objPts.map(p => p.x),
         y: objPts.map(p => p.y),
         mode: 'markers+text',
         marker: {
-          size: markerSize, color: style.color, symbol: style.symbol,
-          line: { width: 1, color: 'white' },
+          size: markerSize, color: markerColor, symbol: style.symbol,
+          line: { width: 1, color: markerLineColor },
         },
         name: objType,
         text: objects.map(o => o.messierNumber),
@@ -675,6 +690,32 @@ function buildTraces(data, options) {
   return traces;
 }
 
+// ─── Astronomical calculations (Tonight's Sky) ───────────────────────────────
+
+function getGMSTDeg(date) {
+  const jd = date.getTime() / 86400000 + 2440587.5;
+  const T  = (jd - 2451545.0) / 36525.0;
+  const gmst = 280.46061837
+    + 360.98564736629 * (jd - 2451545.0)
+    + 0.000387933 * T * T
+    - T * T * T / 38710000;
+  return ((gmst % 360) + 360) % 360;
+}
+
+function getLSTDeg(date, lonDeg) {
+  return (getGMSTDeg(date) + lonDeg + 360) % 360;
+}
+
+// Returns altitude in degrees (-90 to +90). Positive = above horizon.
+function getAltitudeDeg(raDeg, decDeg, lstDeg, latDeg) {
+  const haR  = ((lstDeg - raDeg + 360) % 360) * Math.PI / 180;
+  const decR = decDeg  * Math.PI / 180;
+  const latR = latDeg  * Math.PI / 180;
+  return Math.asin(
+    Math.sin(latR) * Math.sin(decR) + Math.cos(latR) * Math.cos(decR) * Math.cos(haR)
+  ) * 180 / Math.PI;
+}
+
 // ─── Magnitude scaling ────────────────────────────────────────────────────────
 
 // Map apparent magnitude to marker size. Lower mag = brighter = larger dot.
@@ -695,7 +736,10 @@ let selectedConstellations = new Set();
 let selectedSeasons       = new Set();
 let magMin = 0;
 let magMax = 12;
-let scaleSizeByMag = false;
+let scaleSizeByMag  = false;
+let tonightsMode    = false;
+let userLatitude    = null;
+let userLongitude   = null;
 
 function getFilteredData() {
   return allData.filter(obj =>
@@ -707,14 +751,32 @@ function getFilteredData() {
   );
 }
 
+function updateLocationTimeDisplay() {
+  if (!tonightsMode || userLatitude === null) return;
+  const now = new Date();
+  const lst = getLSTDeg(now, userLongitude);
+  const lstH  = lst / 15;
+  const lstHH = Math.floor(lstH).toString().padStart(2, '0');
+  const lstMM = Math.floor((lstH % 1) * 60).toString().padStart(2, '0');
+  const timeStr = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  document.getElementById('location-time').textContent =
+    `${timeStr} · LST ${lstHH}h${lstMM}m`;
+}
+
 function updateChart() {
   const filtered = getFilteredData();
+  const now = new Date();
+  const lst = (tonightsMode && userLatitude !== null)
+    ? getLSTDeg(now, userLongitude) : null;
   const options = {
     showStarLabels:          document.getElementById('show-star-labels').checked,
     showConstellationLines:  document.getElementById('show-constellation-lines').checked,
     showConstellationLabels: document.getElementById('show-constellation-names').checked,
     scaleSizeByMag,
+    lst,
+    lat: userLatitude,
   };
+  updateLocationTimeDisplay();
   Plotly.react('sky-chart', buildTraces(filtered, options), getLayout(), PLOTLY_CONFIG);
   document.getElementById('object-count').textContent =
     `Showing ${filtered.length} of ${allData.length} objects`;
@@ -871,6 +933,61 @@ async function init() {
   document.getElementById('scale-by-magnitude').addEventListener('change', e => {
     scaleSizeByMag = e.target.checked;
     updateChart();
+  });
+
+  // Tonight's Sky
+  const infoEl   = document.getElementById('tonights-sky-info');
+  const manualEl = document.getElementById('manual-location-row');
+  const statusEl = document.getElementById('location-status');
+
+  function applyLocation(lat, lon) {
+    userLatitude  = lat;
+    userLongitude = lon;
+    const latStr = `${Math.abs(lat).toFixed(2)}°${lat >= 0 ? 'N' : 'S'}`;
+    const lonStr = `${Math.abs(lon).toFixed(2)}°${lon >= 0 ? 'E' : 'W'}`;
+    statusEl.textContent = `📍 ${latStr}, ${lonStr}`;
+    manualEl.style.display = 'none';
+    updateChart();
+  }
+
+  document.getElementById('apply-location').addEventListener('click', () => {
+    const lat = parseFloat(document.getElementById('manual-lat').value);
+    const lon = parseFloat(document.getElementById('manual-lon').value);
+    if (!isNaN(lat) && !isNaN(lon) && lat >= -90 && lat <= 90 && lon >= -180 && lon <= 180) {
+      applyLocation(lat, lon);
+    }
+  });
+
+  document.getElementById('change-location').addEventListener('click', () => {
+    manualEl.style.display = '';
+  });
+
+  document.getElementById('tonights-sky-mode').addEventListener('change', async e => {
+    tonightsMode = e.target.checked;
+    if (!tonightsMode) {
+      infoEl.style.display   = 'none';
+      manualEl.style.display = 'none';
+      userLatitude  = null;
+      userLongitude = null;
+      updateChart();
+      return;
+    }
+    infoEl.style.display = '';
+    statusEl.textContent = 'Getting location…';
+    document.getElementById('location-time').textContent = '';
+    if (!navigator.geolocation) {
+      statusEl.textContent = 'Geolocation unavailable — enter coordinates:';
+      manualEl.style.display = '';
+      return;
+    }
+    navigator.geolocation.getCurrentPosition(
+      pos => applyLocation(pos.coords.latitude, pos.coords.longitude),
+      ()  => {
+        statusEl.textContent = 'Location denied — enter coordinates:';
+        manualEl.style.display = '';
+      },
+      { timeout: 10000 }
+    );
   });
 
   // Projection selector
