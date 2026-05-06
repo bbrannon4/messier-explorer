@@ -60,12 +60,32 @@
       border-color: #0d6efd;
     }
 
-    #object-count {
-      background-color: #1a2540;
-      border-color: #2a3a60;
-      color: #87ceeb;
-    }
+    #object-count { color: #87ceeb; font-size: 0.82rem; }
     #sky-chart { background-color: #0B1426; }
+
+    .control-bar {
+      background: #131f38;
+      border: 1px solid #2a3a60;
+      border-radius: 6px;
+      padding: 8px 14px;
+      display: flex;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 14px;
+    }
+    .ctrl-divider { width: 1px; height: 20px; background: #2a3a60; flex-shrink: 0; }
+    .control-bar .form-check-label { font-size: 0.82rem; }
+
+    .location-bar {
+      background: #131f38;
+      border: 1px solid #2a3a60;
+      border-radius: 6px;
+      padding: 7px 14px;
+      display: flex;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 10px;
+    }
 
     #loading-msg {
       display: flex;
@@ -124,96 +144,74 @@
     <div class="row">
       <div class="col-12">
 
-        <h1 class="text-center mb-4">Interactive Messier Sky Chart</h1>
-        <hr>
+        <h1 class="text-center mb-3">Interactive Messier Sky Chart</h1>
+        <hr class="mb-3">
 
-        <!-- Projection selector -->
-        <div class="row mb-3 align-items-center">
-          <div class="col-auto">
-            <span style="color:#aabbcc; font-size:0.875rem;">Projection:</span>
-          </div>
-          <div class="col-auto">
-            <div class="btn-group btn-group-sm" role="group" aria-label="Map projection">
-              <input type="radio" class="btn-check" name="projection" id="proj-equirect" value="equirectangular" autocomplete="off" checked>
-              <label class="btn btn-outline-light" for="proj-equirect">Equirectangular</label>
-              <input type="radio" class="btn-check" name="projection" id="proj-mollweide" value="mollweide" autocomplete="off">
-              <label class="btn btn-outline-light" for="proj-mollweide">Mollweide</label>
-              <input type="radio" class="btn-check" name="projection" id="proj-stereo" value="stereographic" autocomplete="off">
-              <label class="btn btn-outline-light" for="proj-stereo">Stereographic</label>
-            </div>
-          </div>
-        </div>
-
-        <!-- Top controls row -->
-        <div class="row mb-3 align-items-start">
-          <div class="col-md-4 mb-2">
-            <div class="btn-group btn-group-sm">
-              <button class="btn btn-outline-info" id="expand-all">Expand All Filters</button>
-              <button class="btn btn-outline-secondary" id="collapse-all">Collapse All Filters</button>
-            </div>
-          </div>
-          <div class="col-md-8">
-            <div class="form-check mb-1">
-              <input class="form-check-input" type="checkbox" id="show-star-labels" checked>
-              <label class="form-check-label" for="show-star-labels">Show star labels</label>
-            </div>
-            <div class="form-check mb-1">
-              <input class="form-check-input" type="checkbox" id="show-constellation-lines" checked>
-              <label class="form-check-label" for="show-constellation-lines">Show constellation lines</label>
-            </div>
-            <div class="form-check">
-              <input class="form-check-input" type="checkbox" id="show-constellation-names" checked>
-              <label class="form-check-label" for="show-constellation-names">Show constellation names</label>
-            </div>
-          </div>
-        </div>
-
-        <!-- Tonight's Sky toggle -->
-        <div class="row mb-2 align-items-center">
-          <div class="col-auto">
-            <div class="form-check form-switch mb-0">
-              <input class="form-check-input" type="checkbox" id="tonights-sky-mode" role="switch">
-              <label class="form-check-label" for="tonights-sky-mode" style="color:#aabbcc;">Tonight's Sky</label>
-            </div>
-          </div>
-          <div class="col" id="tonights-sky-info" style="display:none;">
-            <span id="location-status" style="color:#87ceeb; font-size:0.85rem;"></span>
-            <span id="location-time" style="color:#aabbcc; font-size:0.8rem; margin-left:1rem;"></span>
-          </div>
-        </div>
-        <div id="manual-location-row" class="row mb-3" style="display:none;">
-          <div class="col-auto">
-            <div class="input-group input-group-sm">
-              <span class="input-group-text" style="background:#1a2540;border-color:#2a3a60;color:#aabbcc;">Lat</span>
-              <input type="number" class="form-control" id="manual-lat" placeholder="40.7" min="-90" max="90" step="0.1" style="background:#1a2540;border-color:#2a3a60;color:white;width:80px;">
-              <span class="input-group-text" style="background:#1a2540;border-color:#2a3a60;color:#aabbcc;">Lon</span>
-              <input type="number" class="form-control" id="manual-lon" placeholder="-74.0" min="-180" max="180" step="0.1" style="background:#1a2540;border-color:#2a3a60;color:white;width:90px;">
-              <button class="btn btn-primary btn-sm" id="apply-location">Apply</button>
-              <button class="btn btn-outline-secondary btn-sm" id="detect-location" title="Request location from browser">📍 Detect</button>
-            </div>
-          </div>
-          <div class="col-auto align-self-center">
-            <small style="color:#aabbcc;">Decimal degrees, east longitude positive</small>
-          </div>
-        </div>
-
-        <!-- Filter panels -->
+        <!-- Control bar -->
         <div class="row mb-3">
+          <div class="col-12">
+            <div class="control-bar">
+              <span style="color:#aabbcc; font-size:0.78rem; white-space:nowrap;">Projection</span>
+              <div class="btn-group btn-group-sm" role="group" aria-label="Map projection">
+                <input type="radio" class="btn-check" name="projection" id="proj-equirect" value="equirectangular" autocomplete="off" checked>
+                <label class="btn btn-outline-light" for="proj-equirect" style="font-size:0.78rem; padding:3px 9px;">Equirect</label>
+                <input type="radio" class="btn-check" name="projection" id="proj-mollweide" value="mollweide" autocomplete="off">
+                <label class="btn btn-outline-light" for="proj-mollweide" style="font-size:0.78rem; padding:3px 9px;">Mollweide</label>
+                <input type="radio" class="btn-check" name="projection" id="proj-stereo" value="stereographic" autocomplete="off">
+                <label class="btn btn-outline-light" for="proj-stereo" style="font-size:0.78rem; padding:3px 9px;">Stereo</label>
+              </div>
+
+              <div class="ctrl-divider"></div>
+
+              <div class="form-check mb-0">
+                <input class="form-check-input" type="checkbox" id="show-star-labels" checked>
+                <label class="form-check-label" for="show-star-labels">Star labels</label>
+              </div>
+              <div class="form-check mb-0">
+                <input class="form-check-input" type="checkbox" id="show-constellation-lines" checked>
+                <label class="form-check-label" for="show-constellation-lines">Const. lines</label>
+              </div>
+              <div class="form-check mb-0">
+                <input class="form-check-input" type="checkbox" id="show-constellation-names" checked>
+                <label class="form-check-label" for="show-constellation-names">Const. names</label>
+              </div>
+              <div class="form-check mb-0">
+                <input class="form-check-input" type="checkbox" id="scale-by-magnitude">
+                <label class="form-check-label" for="scale-by-magnitude">Scale by magnitude</label>
+              </div>
+
+              <div class="ctrl-divider"></div>
+
+              <div class="form-check form-switch mb-0">
+                <input class="form-check-input" type="checkbox" id="tonights-sky-mode" role="switch">
+                <label class="form-check-label" for="tonights-sky-mode" style="color:#87ceeb;">Tonight's Sky</label>
+              </div>
+
+              <div class="ms-auto d-flex gap-2">
+                <button class="btn btn-outline-secondary btn-sm" id="expand-all" style="font-size:0.75rem; padding:3px 9px;">Expand filters</button>
+                <button class="btn btn-outline-secondary btn-sm" id="collapse-all" style="font-size:0.75rem; padding:3px 9px;">Collapse</button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Filter cards -->
+        <div class="row mb-2 g-2">
           <!-- Object Types -->
-          <div class="col-md-4 mb-3">
+          <div class="col-md-3 col-sm-6">
             <div class="card filter-card h-100">
               <div class="card-header">
                 <button class="collapse-toggle" data-bs-toggle="collapse" data-bs-target="#type-collapse" aria-expanded="false">
                   <span class="toggle-icon" id="type-icon">▶ </span>
                   <strong>Object Types</strong>
-                  <span class="badge bg-primary ms-2" id="type-badge">0 selected</span>
+                  <span class="badge bg-primary ms-2" id="type-badge">0</span>
                 </button>
               </div>
               <div class="collapse" id="type-collapse">
                 <div class="card-body p-2">
                   <div class="btn-group btn-group-sm mb-2">
-                    <button class="btn btn-outline-primary btn-sm" id="select-all-types">Select All</button>
-                    <button class="btn btn-outline-secondary btn-sm" id="deselect-all-types">Deselect All</button>
+                    <button class="btn btn-outline-primary btn-sm" id="select-all-types">All</button>
+                    <button class="btn btn-outline-secondary btn-sm" id="deselect-all-types">None</button>
                   </div>
                   <div id="type-checkboxes" class="filter-scroll"></div>
                 </div>
@@ -222,20 +220,20 @@
           </div>
 
           <!-- Constellations -->
-          <div class="col-md-4 mb-3">
+          <div class="col-md-3 col-sm-6">
             <div class="card filter-card h-100">
               <div class="card-header">
                 <button class="collapse-toggle" data-bs-toggle="collapse" data-bs-target="#const-collapse" aria-expanded="false">
                   <span class="toggle-icon" id="const-icon">▶ </span>
                   <strong>Constellations</strong>
-                  <span class="badge bg-primary ms-2" id="const-badge">0 selected</span>
+                  <span class="badge bg-primary ms-2" id="const-badge">0</span>
                 </button>
               </div>
               <div class="collapse" id="const-collapse">
                 <div class="card-body p-2">
                   <div class="btn-group btn-group-sm mb-2">
-                    <button class="btn btn-outline-primary btn-sm" id="select-all-const">Select All</button>
-                    <button class="btn btn-outline-secondary btn-sm" id="deselect-all-const">Deselect All</button>
+                    <button class="btn btn-outline-primary btn-sm" id="select-all-const">All</button>
+                    <button class="btn btn-outline-secondary btn-sm" id="deselect-all-const">None</button>
                   </div>
                   <div id="const-checkboxes" class="filter-scroll"></div>
                 </div>
@@ -243,57 +241,77 @@
             </div>
           </div>
 
-          <!-- Seasons -->
-          <div class="col-md-4 mb-3">
+          <!-- Best Viewing -->
+          <div class="col-md-3 col-sm-6">
             <div class="card filter-card h-100">
               <div class="card-header">
                 <button class="collapse-toggle" data-bs-toggle="collapse" data-bs-target="#season-collapse" aria-expanded="false">
                   <span class="toggle-icon" id="season-icon">▶ </span>
-                  <strong>Best Viewing Season</strong>
-                  <span class="badge bg-primary ms-2" id="season-badge">0 selected</span>
+                  <strong>Best Viewing</strong>
+                  <span class="badge bg-primary ms-2" id="season-badge">0</span>
                 </button>
               </div>
               <div class="collapse" id="season-collapse">
                 <div class="card-body p-2">
                   <div class="btn-group btn-group-sm mb-2">
-                    <button class="btn btn-outline-primary btn-sm" id="select-all-seasons">Select All</button>
-                    <button class="btn btn-outline-secondary btn-sm" id="deselect-all-seasons">Deselect All</button>
+                    <button class="btn btn-outline-primary btn-sm" id="select-all-seasons">All</button>
+                    <button class="btn btn-outline-secondary btn-sm" id="deselect-all-seasons">None</button>
                   </div>
                   <div id="season-checkboxes" class="filter-scroll"></div>
                 </div>
               </div>
             </div>
           </div>
-        </div>
 
-        <!-- Magnitude controls -->
-        <div class="row mb-3 align-items-center g-2">
-          <div class="col-md-8">
-            <div class="card filter-card">
-              <div class="card-body py-2 px-3">
-                <div class="d-flex align-items-center gap-3 flex-wrap">
-                  <span style="color:#aabbcc; font-size:0.875rem; white-space:nowrap;">Magnitude:</span>
-                  <span id="mag-min-label" style="color:white; font-size:0.85rem; min-width:2.8rem; text-align:right;">0.0</span>
-                  <input type="range" class="form-range" id="mag-min" min="0" max="12" step="0.1" value="0" style="flex:1; min-width:80px; accent-color:#0d6efd;">
-                  <span style="color:#aabbcc; font-size:0.85rem;">–</span>
-                  <input type="range" class="form-range" id="mag-max" min="0" max="12" step="0.1" value="12" style="flex:1; min-width:80px; accent-color:#0d6efd;">
-                  <span id="mag-max-label" style="color:white; font-size:0.85rem; min-width:2.8rem;">12.0</span>
+          <!-- Magnitude -->
+          <div class="col-md-3 col-sm-6">
+            <div class="card filter-card h-100">
+              <div class="card-header">
+                <button class="collapse-toggle" data-bs-toggle="collapse" data-bs-target="#mag-collapse" aria-expanded="false">
+                  <span class="toggle-icon" id="mag-icon">▶ </span>
+                  <strong>Magnitude</strong>
+                </button>
+              </div>
+              <div class="collapse" id="mag-collapse">
+                <div class="card-body p-2">
+                  <div class="d-flex align-items-center gap-2 mb-2">
+                    <span style="color:#aabbcc; font-size:0.75rem; min-width:1.6rem;">Min</span>
+                    <span id="mag-min-label" style="color:white; font-size:0.8rem; min-width:2rem; text-align:right;">0.0</span>
+                    <input type="range" class="form-range" id="mag-min" min="0" max="12" step="0.1" value="0" style="flex:1; accent-color:#0d6efd;">
+                  </div>
+                  <div class="d-flex align-items-center gap-2">
+                    <span style="color:#aabbcc; font-size:0.75rem; min-width:1.6rem;">Max</span>
+                    <span id="mag-max-label" style="color:white; font-size:0.8rem; min-width:2rem; text-align:right;">12.0</span>
+                    <input type="range" class="form-range" id="mag-max" min="0" max="12" step="0.1" value="12" style="flex:1; accent-color:#0d6efd;">
+                  </div>
                 </div>
               </div>
             </div>
           </div>
-          <div class="col-md-4">
-            <div class="form-check">
-              <input class="form-check-input" type="checkbox" id="scale-by-magnitude">
-              <label class="form-check-label" for="scale-by-magnitude">Scale marker size by magnitude</label>
+        </div>
+
+        <!-- Tonight's Sky location bar (shown when toggle is on) -->
+        <div id="location-bar" class="row mb-2" style="display:none;">
+          <div class="col-12">
+            <div class="location-bar">
+              <span id="location-status" style="color:#87ceeb; font-size:0.85rem;"></span>
+              <span id="location-time" style="color:#aabbcc; font-size:0.8rem;"></span>
+              <div class="input-group input-group-sm ms-auto" style="width:auto; flex-wrap:nowrap;">
+                <span class="input-group-text" style="background:#1a2540;border-color:#2a3a60;color:#aabbcc;font-size:0.78rem;">Lat</span>
+                <input type="number" class="form-control" id="manual-lat" placeholder="40.7" min="-90" max="90" step="0.1" style="background:#1a2540;border-color:#2a3a60;color:white;width:72px;font-size:0.78rem;">
+                <span class="input-group-text" style="background:#1a2540;border-color:#2a3a60;color:#aabbcc;font-size:0.78rem;">Lon</span>
+                <input type="number" class="form-control" id="manual-lon" placeholder="-74.0" min="-180" max="180" step="0.1" style="background:#1a2540;border-color:#2a3a60;color:white;width:82px;font-size:0.78rem;">
+                <button class="btn btn-primary btn-sm" id="apply-location" style="font-size:0.78rem;">Apply</button>
+                <button class="btn btn-outline-secondary btn-sm" id="detect-location" style="font-size:0.78rem;" title="Request location from browser">📍 Detect</button>
+              </div>
             </div>
           </div>
         </div>
 
         <!-- Object count -->
-        <div class="row mb-3">
-          <div class="col-12">
-            <div class="alert mb-0 text-center" id="object-count">Loading catalog…</div>
+        <div class="row mb-2">
+          <div class="col-12 px-1">
+            <span id="object-count" style="padding-left:4px;">Loading catalog…</span>
           </div>
         </div>
 

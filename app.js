@@ -943,6 +943,7 @@ function setupCollapseIcons() {
     ['type-collapse',   'type-icon'],
     ['const-collapse',  'const-icon'],
     ['season-collapse', 'season-icon'],
+    ['mag-collapse',    'mag-icon'],
   ]) {
     const el = document.getElementById(collapseId);
     el.addEventListener('show.bs.collapse', () => { document.getElementById(iconId).textContent = '▼ '; });
@@ -950,12 +951,12 @@ function setupCollapseIcons() {
   }
 
   document.getElementById('expand-all').addEventListener('click', () => {
-    ['type-collapse', 'const-collapse', 'season-collapse'].forEach(id =>
+    ['type-collapse', 'const-collapse', 'season-collapse', 'mag-collapse'].forEach(id =>
       bootstrap.Collapse.getOrCreateInstance(document.getElementById(id)).show()
     );
   });
   document.getElementById('collapse-all').addEventListener('click', () => {
-    ['type-collapse', 'const-collapse', 'season-collapse'].forEach(id =>
+    ['type-collapse', 'const-collapse', 'season-collapse', 'mag-collapse'].forEach(id =>
       bootstrap.Collapse.getOrCreateInstance(document.getElementById(id)).hide()
     );
   });
@@ -1018,9 +1019,8 @@ async function init() {
   });
 
   // Tonight's Sky
-  const infoEl   = document.getElementById('tonights-sky-info');
-  const manualEl = document.getElementById('manual-location-row');
-  const statusEl = document.getElementById('location-status');
+  const locationBarEl = document.getElementById('location-bar');
+  const statusEl      = document.getElementById('location-status');
 
   function applyLocation(lat, lon) {
     userLatitude  = lat;
@@ -1059,8 +1059,7 @@ async function init() {
   document.getElementById('tonights-sky-mode').addEventListener('change', e => {
     tonightsMode = e.target.checked;
     if (!tonightsMode) {
-      infoEl.style.display   = 'none';
-      manualEl.style.display = 'none';
+      locationBarEl.style.display = 'none';
       userLatitude  = null;
       userLongitude = null;
       document.getElementById('location-time').textContent = '';
@@ -1068,8 +1067,7 @@ async function init() {
       return;
     }
     // Always show the input form immediately so the user has something to interact with
-    infoEl.style.display   = '';
-    manualEl.style.display = '';
+    locationBarEl.style.display = '';
     // Also try geolocation in the background — will auto-fill the fields if granted
     tryGeolocation();
   });
