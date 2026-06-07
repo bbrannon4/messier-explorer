@@ -818,6 +818,10 @@ let selectedSeasons       = new Set();
 let magMin = 0;
 let magMax = 12;
 let scaleSizeByMag  = false;
+let currentTab    = 'skychart';
+let plannerDate   = '';
+let plannerMinAlt = 20;
+let plannerView   = 'gantt';
 let tonightsMode    = false;
 let userLatitude    = null;
 let userLongitude   = null;
@@ -867,6 +871,7 @@ function updateChart() {
   syncCheckboxes('type-checkboxes',   selectedTypes);
   syncCheckboxes('const-checkboxes',  selectedConstellations);
   syncCheckboxes('season-checkboxes', selectedSeasons);
+  updatePlanner();
 }
 
 function syncCheckboxes(containerId, selectedSet) {
@@ -1059,16 +1064,14 @@ async function init() {
   document.getElementById('tonights-sky-mode').addEventListener('change', e => {
     tonightsMode = e.target.checked;
     if (!tonightsMode) {
-      locationBarEl.style.display = 'none';
       userLatitude  = null;
       userLongitude = null;
       document.getElementById('location-time').textContent = '';
+      updateLocationBarVisibility();
       updateChart();
       return;
     }
-    // Always show the input form immediately so the user has something to interact with
-    locationBarEl.style.display = '';
-    // Also try geolocation in the background — will auto-fill the fields if granted
+    updateLocationBarVisibility();
     tryGeolocation();
   });
 
@@ -1081,6 +1084,22 @@ async function init() {
   );
 
   setupCollapseIcons();
+
+  // Tab switching
+  document.querySelectorAll('[data-tab]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      currentTab = btn.dataset.tab;
+      document.getElementById('ctrl-skychart').style.display    = currentTab === 'skychart' ? '' : 'none';
+      document.getElementById('ctrl-planner').style.display     = currentTab === 'planner'  ? '' : 'none';
+      document.getElementById('content-skychart').style.display = currentTab === 'skychart' ? '' : 'none';
+      document.getElementById('content-planner').style.display  = currentTab === 'planner'  ? '' : 'none';
+      document.querySelectorAll('[data-tab]').forEach(b =>
+        b.classList.toggle('active', b.dataset.tab === currentTab)
+      );
+      updateLocationBarVisibility();
+      if (currentTab === 'planner') updatePlanner();
+    });
+  });
 
   // Load CSV
   let csvText;
@@ -1113,6 +1132,7 @@ async function init() {
   setupSelectAll('select-all-seasons', 'deselect-all-seasons', allSeasons,        selectedSeasons,        'season-checkboxes');
 
   document.getElementById('loading-msg').remove();
+  initPlanner();
   updateChart();
 
   // Detail panel — close controls
@@ -1127,6 +1147,324 @@ async function init() {
     const [commonName, objectType, constellation, magnitude, distance, bestViewing, , , dimensions] = pt.customdata;
     openDetailPanel(pt.text, commonName, objectType, constellation, magnitude, distance, bestViewing, dimensions);
   });
+}
+
+// ─── Night Planner ────────────────────────────────────────────────────────────
+
+function getSunRaDec(date) {
+  const jd  = date.getTime() / 86400000 + 2440587.5;
+  const n   = jd - 2451545.0;
+  const L   = ((280.460 + 0.9856474 * n) % 360 + 360) % 360;
+  const g   = ((357.528 + 0.9856003 * n) % 360 + 360) % 360 * Math.PI / 180;
+  const lam = (L + 1.915 * Math.sin(g) + 0.020 * Math.sin(2 * g)) * Math.PI / 180;
+  const eps = 23.439 * Math.PI / 180;
+  const ra  = ((Math.atan2(Math.cos(eps) * Math.sin(lam), Math.cos(lam)) * 180 / Math.PI) + 360) % 360;
+  const dec = Math.asin(Math.sin(eps) * Math.sin(lam)) * 180 / Math.PI;
+  return { raDeg: ra, decDeg: dec };
+}
+
+function altToColor(alt) {
+  const t = Math.min(1, Math.max(0, (alt - 20) / 65));
+  return `rgb(${Math.round(50 + 20 * (1 - t))}, ${Math.round(120 + 110 * t)}, ${Math.round(60 + 140 * t)})`;
+}
+
+function formatHour(h) {
+  const hh = Math.floor(h) % 24;
+  const mm = Math.round((h % 1) * 60);
+  return `${hh.toString().padStart(2, '0')}:${mm.toString().padStart(2, '0')}`;
+}
+
+function buildPlannerChart(filteredData) {
+  const noLocEl = document.getElementById('planner-no-location');
+  const chartEl = document.getElementById('planner-chart');
+
+  if (userLatitude === null) {
+    noLocEl.style.display = '';
+    chartEl.style.display = 'none';
+    return;
+  }
+  noLocEl.style.display = 'none';
+  chartEl.style.display = '';
+
+  const [yr, mo, dy] = plannerDate.split('-').map(Number);
+
+  // 65 steps: 16:00 → 32:00 (8 am next day), every 15 min
+  const steps = Array.from({ length: 65 }, (_, i) => {
+    const h = 16 + i * 0.25;
+    return { x: h, date: new Date(yr, mo - 1, dy, Math.floor(h), Math.round((h % 1) * 60), 0) };
+  });
+
+  const sunAlts = steps.map(s => {
+    const sun = getSunRaDec(s.date);
+    return getAltitudeDeg(sun.raDeg, sun.decDeg, getLSTDeg(s.date, userLongitude), userLatitude);
+  });
+
+  const profiles = filteredData.map(obj => {
+    const alts = steps.map(s =>
+      getAltitudeDeg(obj.raDeg, obj.decDeg, getLSTDeg(s.date, userLongitude), userLatitude)
+    );
+
+    let peakAlt = -90, peakX = 24;
+    for (let i = 0; i < steps.length; i++) {
+      if (sunAlts[i] < 0 && alts[i] > peakAlt) { peakAlt = alts[i]; peakX = steps[i].x; }
+    }
+
+    const windows = [];
+    let wStart = null;
+    for (let i = 0; i < steps.length; i++) {
+      if (alts[i] >= plannerMinAlt && wStart === null) wStart = i;
+      if (alts[i] < plannerMinAlt && wStart !== null) {
+        windows.push({ x0: steps[wStart].x, x1: steps[i - 1].x });
+        wStart = null;
+      }
+    }
+    if (wStart !== null) windows.push({ x0: steps[wStart].x, x1: steps[steps.length - 1].x });
+
+    return { obj, peakAlt, peakX, windows };
+  });
+
+  const visible = profiles
+    .filter(p => p.windows.length > 0 && p.peakAlt >= plannerMinAlt)
+    .sort((a, b) => b.peakAlt - a.peakAlt);
+
+  // Night boundaries: sun < 0° (horizon) and sun < -6° (civil twilight)
+  let nightX0 = 20, nightX1 = 28, civX0 = 19.5, civX1 = 28.5;
+  for (let i = 0;                i < steps.length; i++) { if (sunAlts[i] < 0)  { nightX0 = steps[i].x; break; } }
+  for (let i = steps.length - 1; i >= 0;           i--) { if (sunAlts[i] < 0)  { nightX1 = steps[i].x; break; } }
+  for (let i = 0;                i < steps.length; i++) { if (sunAlts[i] < -6) { civX0   = steps[i].x; break; } }
+  for (let i = steps.length - 1; i >= 0;           i--) { if (sunAlts[i] < -6) { civX1   = steps[i].x; break; } }
+
+  document.getElementById('object-count').textContent = visible.length
+    ? `${visible.length} objects visible tonight · ${filteredData.length - visible.length} below ${plannerMinAlt}° threshold`
+    : `No objects above ${plannerMinAlt}° for the selected night`;
+
+  if (!visible.length) {
+    Plotly.react('planner-chart', [], {
+      paper_bgcolor: '#0B1426', plot_bgcolor: '#0B1426', height: 200,
+      annotations: [{ text: `No objects above ${plannerMinAlt}° for the selected night`, x: 0.5, y: 0.5, xref: 'paper', yref: 'paper', showarrow: false, font: { color: '#87ceeb', size: 14 } }],
+      margin: { l: 20, r: 20, t: 30, b: 50 },
+    }, PLOTLY_CONFIG);
+    return;
+  }
+
+  const yLabels = visible.map(p => {
+    const cn = p.obj.commonName && p.obj.commonName !== '–' ? ` · ${p.obj.commonName}` : '';
+    return `${p.obj.messierNumber}${cn}`;
+  });
+
+  const traces = [];
+  for (let i = 0; i < visible.length; i++) {
+    const { obj, windows, peakAlt } = visible[i];
+    for (const win of windows) {
+      traces.push({
+        type: 'bar',
+        orientation: 'h',
+        x: [win.x1 - win.x0],
+        base: [win.x0],
+        y: [yLabels[i]],
+        marker: { color: altToColor(peakAlt) },
+        showlegend: false,
+        hovertemplate:
+          `<b>${obj.messierNumber}</b>${obj.commonName && obj.commonName !== '–' ? ' — ' + obj.commonName : ''}<br>` +
+          `${formatHour(win.x0)} – ${formatHour(win.x1)}<br>` +
+          `Peak: ${peakAlt.toFixed(0)}°  ·  ${obj.objectType}<extra></extra>`,
+      });
+    }
+  }
+
+  // Color legend entries (invisible bars, show in legend only)
+  const legendItems = [['High overhead (>60°)', 75], ['Good (30–60°)', 45], ['Low (<30°)', 25]];
+  for (const [label, alt] of legendItems) {
+    traces.push({
+      type: 'bar', orientation: 'h',
+      x: [0], base: [32], y: [yLabels[0]],
+      name: label, marker: { color: altToColor(alt) },
+      showlegend: true, hovertemplate: '<extra></extra>',
+    });
+  }
+
+  const tickVals = [], tickText = [];
+  for (let h = Math.ceil(civX0); h <= Math.floor(civX1); h++) {
+    tickVals.push(h); tickText.push(formatHour(h));
+  }
+
+  const ROW_PX = 30;
+  const chartHeight = visible.length * ROW_PX + 80;
+
+  Plotly.react('planner-chart', traces, {
+    height: chartHeight,
+    paper_bgcolor: '#0B1426',
+    plot_bgcolor:  '#0d1830',
+    height: chartHeight,
+    font: { color: 'white', family: 'Arial, Helvetica, sans-serif' },
+    barmode: 'overlay',
+    bargap: 0.25,
+    showlegend: true,
+    legend: { x: 1.01, y: 1, xanchor: 'left', yanchor: 'top', bgcolor: 'rgba(26,37,64,0.85)', font: { size: 11, color: 'white' }, title: { text: 'Peak altitude', font: { size: 11, color: '#aabbcc' } } },
+    margin: { l: 170, r: 160, t: 20, b: 50 },
+    xaxis: {
+      range: [civX0 - 0.25, civX1 + 0.25], tickvals: tickVals, ticktext: tickText,
+      tickfont: { color: '#aabbcc', size: 11 }, gridcolor: 'rgba(128,128,128,0.2)',
+      showgrid: true, zeroline: false,
+    },
+    yaxis: {
+      tickfont: { color: '#ccddee', size: 11 }, showgrid: false,
+      zeroline: false, autorange: 'reversed',
+    },
+    shapes: [
+      { type: 'rect', xref: 'x', yref: 'paper', x0: civX0,   x1: nightX0, y0: 0, y1: 1, fillcolor: 'rgba(80,60,20,0.25)',  line: { width: 0 }, layer: 'below' },
+      { type: 'rect', xref: 'x', yref: 'paper', x0: nightX0, x1: nightX1, y0: 0, y1: 1, fillcolor: 'rgba(0,5,25,0.5)',    line: { width: 0 }, layer: 'below' },
+      { type: 'rect', xref: 'x', yref: 'paper', x0: nightX1, x1: civX1,   y0: 0, y1: 1, fillcolor: 'rgba(80,60,20,0.25)', line: { width: 0 }, layer: 'below' },
+      { type: 'line', xref: 'x', yref: 'paper', x0: 24, x1: 24, y0: 0, y1: 1, line: { color: 'rgba(150,150,220,0.35)', width: 1, dash: 'dot' } },
+    ],
+    annotations: [
+      { x: 24,      y: 1.02, xref: 'x', yref: 'paper', text: 'midnight', showarrow: false, font: { color: 'rgba(150,150,220,0.55)', size: 9 }, xanchor: 'center' },
+      { x: nightX0, y: 1.02, xref: 'x', yref: 'paper', text: 'sunset',   showarrow: false, font: { color: 'rgba(200,160,80,0.6)',  size: 9 }, xanchor: 'center' },
+      { x: nightX1, y: 1.02, xref: 'x', yref: 'paper', text: 'sunrise',  showarrow: false, font: { color: 'rgba(200,160,80,0.6)',  size: 9 }, xanchor: 'center' },
+    ],
+  }, { displayModeBar: true, modeBarButtonsToRemove: ['lasso2d', 'select2d'], responsive: false });
+}
+
+const ALT_PALETTE = [
+  '#4ec9b0','#f5c842','#e06c75','#98c379','#61afef',
+  '#c678dd','#e5c07b','#56b6c2','#d19a66','#abb2bf',
+  '#be5046','#3fc6f1',
+];
+const ALT_DASHES = ['solid','dash','dot','dashdot'];
+
+function buildAltitudeChart(filteredData) {
+  if (userLatitude === null) return;
+
+  const [yr, mo, dy] = plannerDate.split('-').map(Number);
+  const steps = Array.from({ length: 65 }, (_, i) => {
+    const h = 16 + i * 0.25;
+    return { x: h, date: new Date(yr, mo - 1, dy, Math.floor(h), Math.round((h % 1) * 60), 0) };
+  });
+  const sunAlts = steps.map(s => {
+    const sun = getSunRaDec(s.date);
+    return getAltitudeDeg(sun.raDeg, sun.decDeg, getLSTDeg(s.date, userLongitude), userLatitude);
+  });
+
+  let nightX0 = 20, nightX1 = 28, civX0 = 19.5, civX1 = 28.5;
+  for (let i = 0;                i < steps.length; i++) { if (sunAlts[i] < 0)  { nightX0 = steps[i].x; break; } }
+  for (let i = steps.length - 1; i >= 0;           i--) { if (sunAlts[i] < 0)  { nightX1 = steps[i].x; break; } }
+  for (let i = 0;                i < steps.length; i++) { if (sunAlts[i] < -6) { civX0   = steps[i].x; break; } }
+  for (let i = steps.length - 1; i >= 0;           i--) { if (sunAlts[i] < -6) { civX1   = steps[i].x; break; } }
+
+  const xRange = [civX0 - 0.25, civX1 + 0.25];
+  const tickVals = [], tickText = [];
+  for (let h = Math.ceil(civX0); h <= Math.floor(civX1); h++) {
+    tickVals.push(h); tickText.push(formatHour(h));
+  }
+
+  // One trace per object, only those that reach plannerMinAlt during the night
+  const visible = filteredData.filter(obj => {
+    for (let i = 0; i < steps.length; i++) {
+      if (sunAlts[i] < 0) {
+        const alt = getAltitudeDeg(obj.raDeg, obj.decDeg, getLSTDeg(steps[i].date, userLongitude), userLatitude);
+        if (alt >= plannerMinAlt) return true;
+      }
+    }
+    return false;
+  });
+
+  const traces = [];
+  for (let i = 0; i < visible.length; i++) {
+    const obj = visible[i];
+    const alts = steps.map(s =>
+      getAltitudeDeg(obj.raDeg, obj.decDeg, getLSTDeg(s.date, userLongitude), userLatitude)
+    );
+    const cn = obj.commonName && obj.commonName !== '–' ? ` · ${obj.commonName}` : '';
+    traces.push({
+      type: 'scatter', mode: 'lines',
+      x: steps.map(s => s.x), y: alts,
+      name: `${obj.messierNumber}${cn}`,
+      line: {
+        color: ALT_PALETTE[i % ALT_PALETTE.length],
+        width: 2,
+        dash: ALT_DASHES[Math.floor(i / ALT_PALETTE.length) % ALT_DASHES.length],
+      },
+      hovertemplate:
+        `<b>${obj.messierNumber}${cn}</b><br>` +
+        `%{customdata} · %{y:.0f}°<extra></extra>`,
+      customdata: steps.map(s => formatHour(s.x)),
+    });
+  }
+
+  // Horizon and threshold reference lines
+  traces.push({ type: 'scatter', x: xRange, y: [0, 0], mode: 'lines', line: { color: 'rgba(255,255,255,0.25)', width: 1 }, showlegend: false, hoverinfo: 'skip' });
+  if (plannerMinAlt > 0) {
+    traces.push({ type: 'scatter', x: xRange, y: [plannerMinAlt, plannerMinAlt], mode: 'lines', line: { color: 'rgba(255,255,100,0.3)', width: 1, dash: 'dot' }, name: `${plannerMinAlt}° min`, showlegend: false, hoverinfo: 'skip' });
+  }
+
+  Plotly.react('planner-altitude', traces, {
+    paper_bgcolor: '#0B1426', plot_bgcolor: '#0d1830',
+    height: 520,
+    font: { color: 'white', family: 'Arial, Helvetica, sans-serif' },
+    margin: { l: 55, r: 20, t: 30, b: 50 },
+    hovermode: 'closest',
+    legend: { bgcolor: 'rgba(26,37,64,0.85)', font: { size: 11, color: 'white' } },
+    xaxis: {
+      range: xRange, tickvals: tickVals, ticktext: tickText,
+      tickfont: { color: '#aabbcc', size: 11 }, gridcolor: 'rgba(128,128,128,0.2)', showgrid: true, zeroline: false,
+    },
+    yaxis: {
+      range: [-5, 90], title: { text: 'Altitude (°)', font: { size: 11 } },
+      tickfont: { color: '#aabbcc', size: 11 }, gridcolor: 'rgba(128,128,128,0.15)', showgrid: true, zeroline: false,
+    },
+    shapes: [
+      { type: 'rect', xref: 'x', yref: 'paper', x0: civX0,   x1: nightX0, y0: 0, y1: 1, fillcolor: 'rgba(80,60,20,0.25)',  line: { width: 0 }, layer: 'below' },
+      { type: 'rect', xref: 'x', yref: 'paper', x0: nightX0, x1: nightX1, y0: 0, y1: 1, fillcolor: 'rgba(0,5,25,0.5)',    line: { width: 0 }, layer: 'below' },
+      { type: 'rect', xref: 'x', yref: 'paper', x0: nightX1, x1: civX1,   y0: 0, y1: 1, fillcolor: 'rgba(80,60,20,0.25)', line: { width: 0 }, layer: 'below' },
+      { type: 'line', xref: 'x', yref: 'paper', x0: 24, x1: 24, y0: 0, y1: 1, line: { color: 'rgba(150,150,220,0.35)', width: 1, dash: 'dot' } },
+    ],
+    annotations: [
+      { x: 24,      y: 1.02, xref: 'x', yref: 'paper', text: 'midnight', showarrow: false, font: { color: 'rgba(150,150,220,0.55)', size: 9 }, xanchor: 'center' },
+      { x: nightX0, y: 1.02, xref: 'x', yref: 'paper', text: 'sunset',   showarrow: false, font: { color: 'rgba(200,160,80,0.6)',  size: 9 }, xanchor: 'center' },
+      { x: nightX1, y: 1.02, xref: 'x', yref: 'paper', text: 'sunrise',  showarrow: false, font: { color: 'rgba(200,160,80,0.6)',  size: 9 }, xanchor: 'center' },
+    ],
+  }, { displayModeBar: true, modeBarButtonsToRemove: ['lasso2d', 'select2d'], responsive: false });
+}
+
+function updatePlanner() {
+  if (currentTab !== 'planner') return;
+  const data = getFilteredData();
+  const isGantt = plannerView === 'gantt';
+  document.getElementById('planner-chart').style.display    = isGantt ? '' : 'none';
+  document.getElementById('planner-altitude').style.display = isGantt ? 'none' : '';
+  if (isGantt) buildPlannerChart(data);
+  else         buildAltitudeChart(data);
+}
+
+function updateLocationBarVisibility() {
+  document.getElementById('location-bar').style.display =
+    (tonightsMode || currentTab === 'planner') ? '' : 'none';
+}
+
+function initPlanner() {
+  const today = new Date();
+  plannerDate = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+  document.getElementById('planner-date').value = plannerDate;
+
+  document.getElementById('planner-date').addEventListener('change', e => {
+    plannerDate = e.target.value;
+    updatePlanner();
+  });
+
+  const minAltEl    = document.getElementById('planner-min-alt');
+  const minAltLabel = document.getElementById('planner-min-alt-label');
+  minAltEl.addEventListener('input', () => {
+    plannerMinAlt = parseInt(minAltEl.value, 10);
+    minAltLabel.textContent = plannerMinAlt + '°';
+    updatePlanner();
+  });
+
+  document.querySelectorAll('input[name="planner-view"]').forEach(radio =>
+    radio.addEventListener('change', () => {
+      plannerView = radio.value;
+      updatePlanner();
+    })
+  );
 }
 
 document.addEventListener('DOMContentLoaded', init);

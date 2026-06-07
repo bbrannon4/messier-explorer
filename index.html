@@ -137,6 +137,40 @@
       font-size: 0.85rem;
       font-family: Arial, Helvetica, sans-serif;
     }
+
+    /* ── Tabs ── */
+    .main-tabs { border-bottom: 1px solid #2a3a60; }
+    .main-tabs .nav-link {
+      color: #aabbcc;
+      background: none;
+      border-color: transparent;
+      font-family: Arial, Helvetica, sans-serif;
+      font-size: 0.92rem;
+      padding: 8px 18px;
+    }
+    .main-tabs .nav-link:hover { color: white; border-color: transparent; }
+    .main-tabs .nav-link.active {
+      color: white;
+      background-color: #1a2540;
+      border-color: #2a3a60 #2a3a60 #1a2540;
+    }
+
+    /* ── Night Planner ── */
+    #planner-no-location {
+      text-align: center;
+      padding: 60px 20px;
+      color: #87ceeb;
+      font-size: 1rem;
+    }
+    input[type="date"] {
+      background: #1a2540;
+      border: 1px solid #2a3a60;
+      color: white;
+      border-radius: 4px;
+      padding: 3px 8px;
+      font-size: 0.82rem;
+      color-scheme: dark;
+    }
   </style>
 </head>
 <body>
@@ -147,8 +181,18 @@
         <h1 class="text-center mb-3">Interactive Messier Sky Chart</h1>
         <hr class="mb-3">
 
-        <!-- Control bar -->
-        <div class="row mb-3">
+        <!-- Tab nav -->
+        <ul class="nav main-tabs mb-3">
+          <li class="nav-item">
+            <button class="nav-link active" data-tab="skychart">Sky Chart</button>
+          </li>
+          <li class="nav-item">
+            <button class="nav-link" data-tab="planner">Night Planner</button>
+          </li>
+        </ul>
+
+        <!-- Sky Chart control bar -->
+        <div class="row mb-3" id="ctrl-skychart">
           <div class="col-12">
             <div class="control-bar">
               <span style="color:#aabbcc; font-size:0.78rem; white-space:nowrap;">Projection</span>
@@ -195,7 +239,39 @@
           </div>
         </div>
 
-        <!-- Filter cards -->
+        <!-- Night Planner control bar -->
+        <div class="row mb-3" id="ctrl-planner" style="display:none;">
+          <div class="col-12">
+            <div class="control-bar">
+              <span style="color:#aabbcc; font-size:0.78rem; white-space:nowrap;">Date</span>
+              <input type="date" id="planner-date">
+
+              <div class="ctrl-divider"></div>
+
+              <span style="color:#aabbcc; font-size:0.78rem; white-space:nowrap;">Min altitude</span>
+              <span id="planner-min-alt-label" style="color:white; font-size:0.82rem; min-width:2.2rem;">20°</span>
+              <input type="range" id="planner-min-alt" min="0" max="60" step="5" value="20" style="width:110px; accent-color:#0d6efd;">
+
+              <div class="ctrl-divider"></div>
+
+              <div class="ctrl-divider"></div>
+
+              <span style="color:#aabbcc; font-size:0.78rem; white-space:nowrap;">View</span>
+              <div class="btn-group btn-group-sm" role="group">
+                <input type="radio" class="btn-check" name="planner-view" id="view-gantt" value="gantt" autocomplete="off" checked>
+                <label class="btn btn-outline-light" for="view-gantt" style="font-size:0.78rem; padding:3px 9px;">Timeline</label>
+                <input type="radio" class="btn-check" name="planner-view" id="view-altitude" value="altitude" autocomplete="off">
+                <label class="btn btn-outline-light" for="view-altitude" style="font-size:0.78rem; padding:3px 9px;">Altitude</label>
+              </div>
+
+              <div class="ctrl-divider"></div>
+
+              <span style="color:#556688; font-size:0.78rem;">Sky Chart filters apply · set location below</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Filter cards (shared) -->
         <div class="row mb-2 g-2">
           <!-- Object Types -->
           <div class="col-md-3 col-sm-6">
@@ -290,7 +366,7 @@
           </div>
         </div>
 
-        <!-- Tonight's Sky location bar (shown when toggle is on) -->
+        <!-- Location bar (shown for Tonight's Sky or Night Planner) -->
         <div id="location-bar" class="row mb-2" style="display:none;">
           <div class="col-12">
             <div class="location-bar">
@@ -315,12 +391,23 @@
           </div>
         </div>
 
-        <!-- Chart -->
-        <div class="row">
+        <!-- Sky Chart -->
+        <div id="content-skychart" class="row">
           <div class="col-12">
             <div id="sky-chart" style="height: 800px;">
               <div id="loading-msg">Loading star chart…</div>
             </div>
+          </div>
+        </div>
+
+        <!-- Night Planner -->
+        <div id="content-planner" class="row" style="display:none;">
+          <div class="col-12">
+            <div id="planner-no-location">
+              Set your location above to use the Night Planner.
+            </div>
+            <div id="planner-chart"></div>
+            <div id="planner-altitude" style="display:none;"></div>
           </div>
         </div>
 
