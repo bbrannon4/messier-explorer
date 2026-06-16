@@ -633,26 +633,18 @@ function buildTraces(data, options) {
   for (const category of ['Galaxy', 'Nebula', 'Cluster', 'Other']) {
     if (!byCategory[category]) continue;
     for (const objType of Object.keys(byCategory[category]).sort()) {
-      const objects = byCategory[category][objType];
+      // Tonight's Sky: only show objects currently above the horizon
+      const objects = options.lst !== null
+        ? byCategory[category][objType].filter(o =>
+            getAltitudeDeg(o.raDeg, o.decDeg, options.lst, options.lat) > -0.5)
+        : byCategory[category][objType];
+      if (!objects.length) continue;
+
       const style   = getObjectStyle(objType);
       const objPts  = objects.map(o => projectPoint(o.raDeg, o.decDeg));
       const markerSize = options.scaleSizeByMag
         ? objects.map(o => magToSize(o.magnitudeVal))
         : style.size;
-
-      // Tonight's Sky: color above-horizon objects normally, gray out below-horizon
-      let markerColor     = style.color;
-      let markerLineColor = 'white';
-      if (options.lst !== null) {
-        markerColor = objects.map(o => {
-          const alt = getAltitudeDeg(o.raDeg, o.decDeg, options.lst, options.lat);
-          return alt > -0.5 ? style.color : 'rgba(80,80,80,0.22)';
-        });
-        markerLineColor = objects.map(o => {
-          const alt = getAltitudeDeg(o.raDeg, o.decDeg, options.lst, options.lat);
-          return alt > -0.5 ? 'rgba(255,255,255,0.8)' : 'rgba(80,80,80,0.22)';
-        });
-      }
 
       traces.push({
         type: 'scatter',
@@ -660,8 +652,8 @@ function buildTraces(data, options) {
         y: objPts.map(p => p.y),
         mode: 'markers+text',
         marker: {
-          size: markerSize, color: markerColor, symbol: style.symbol,
-          line: { width: 1, color: markerLineColor },
+          size: markerSize, color: style.color, symbol: style.symbol,
+          line: { width: 1, color: 'rgba(255,255,255,0.8)' },
         },
         name: objType,
         text: objects.map(o => o.messierNumber),
@@ -1295,8 +1287,8 @@ function buildPlannerChart(filteredData) {
     height: chartHeight,
     paper_bgcolor: '#0B1426',
     plot_bgcolor:  '#0d1830',
-    height: chartHeight,
     font: { color: 'white', family: 'Arial, Helvetica, sans-serif' },
+    dragmode: 'pan',
     barmode: 'overlay',
     bargap: 0.25,
     showlegend: true,
@@ -1375,6 +1367,7 @@ function buildAltitudeChart(filteredData) {
       getAltitudeDeg(obj.raDeg, obj.decDeg, getLSTDeg(s.date, userLongitude), userLatitude)
     );
     const cn = obj.commonName && obj.commonName !== '–' ? ` · ${obj.commonName}` : '';
+    const season = obj.bestViewing ? obj.bestViewing.charAt(0).toUpperCase() + obj.bestViewing.slice(1) : '—';
     traces.push({
       type: 'scatter', mode: 'lines',
       x: steps.map(s => s.x), y: alts,
@@ -1385,9 +1378,22 @@ function buildAltitudeChart(filteredData) {
         dash: ALT_DASHES[Math.floor(i / ALT_PALETTE.length) % ALT_DASHES.length],
       },
       hovertemplate:
-        `<b>${obj.messierNumber}${cn}</b><br>` +
-        `%{customdata} · %{y:.0f}°<extra></extra>`,
-      customdata: steps.map(s => formatHour(s.x)),
+        `<b>${obj.messierNumber}${obj.commonName && obj.commonName !== '–' ? ' — ' + obj.commonName : ''}</b><br>` +
+        `%{customdata[0]} · %{y:.0f}°<br>` +
+        `Type: %{customdata[1]}<br>` +
+        `Constellation: %{customdata[2]}<br>` +
+        `Magnitude: %{customdata[3]}<br>` +
+        `Distance: %{customdata[4]} kly<br>` +
+        `Best Viewing: %{customdata[5]}<extra></extra>`,
+      customdata: steps.map(s => [
+        formatHour(s.x),
+        obj.objectType,
+        obj.constellation,
+        obj.magnitude,
+        obj.distance,
+        season,
+        obj.messierNumber,
+      ]),
     });
   }
 
@@ -1402,6 +1408,7 @@ function buildAltitudeChart(filteredData) {
     height: 520,
     font: { color: 'white', family: 'Arial, Helvetica, sans-serif' },
     margin: { l: 55, r: 20, t: 30, b: 50 },
+    dragmode: 'pan',
     hovermode: 'closest',
     legend: { bgcolor: 'rgba(26,37,64,0.85)', font: { size: 11, color: 'white' } },
     xaxis: {
@@ -1424,6 +1431,18 @@ function buildAltitudeChart(filteredData) {
       { x: nightX1, y: 1.02, xref: 'x', yref: 'paper', text: 'sunrise',  showarrow: false, font: { color: 'rgba(200,160,80,0.6)',  size: 9 }, xanchor: 'center' },
     ],
   }, { displayModeBar: true, modeBarButtonsToRemove: ['lasso2d', 'select2d'], responsive: false });
+
+  // Click a line → open detail panel (same as main sky chart)
+  const altEl = document.getElementById('planner-altitude');
+  altEl.removeAllListeners?.('plotly_click');
+  altEl.on('plotly_click', data => {
+    const pt = data.points[0];
+    if (!pt.customdata || !pt.customdata[6]) return;
+    const messierNum = pt.customdata[6];
+    const obj = allData.find(o => o.messierNumber === messierNum);
+    if (!obj) return;
+    openDetailPanel(obj.messierNumber, obj.commonName, obj.objectType, obj.constellation, obj.magnitude, obj.distance, obj.bestViewing, obj.dimensions);
+  });
 }
 
 function updatePlanner() {
