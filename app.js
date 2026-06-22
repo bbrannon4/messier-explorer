@@ -708,6 +708,147 @@ function getAltitudeDeg(raDeg, decDeg, lstDeg, latDeg) {
   ) * 180 / Math.PI;
 }
 
+// ─── Monthly visibility chart ─────────────────────────────────────────────────
+
+function computeMonthlyVisibility(raDeg, decDeg) {
+  const results = [];
+  for (let month = 0; month < 12; month++) {
+    let darkHours = 0;
+    let maxAlt = -90;
+    // Step every 15 min for 24 h starting at noon on the 15th
+    for (let step = 0; step < 96; step++) {
+      const d = new Date(2025, month, 15, 12, step * 15, 0);
+      const lst    = getLSTDeg(d, PANEL_LON);
+      const sun    = getSunRaDec(d);
+      const sunAlt = getAltitudeDeg(sun.raDeg, sun.decDeg, lst, PANEL_LAT);
+      if (sunAlt < -18) {
+        const objAlt = getAltitudeDeg(raDeg, decDeg, lst, PANEL_LAT);
+        if (objAlt > 20) darkHours += 0.25;
+        if (objAlt > maxAlt) maxAlt = objAlt;
+      }
+    }
+    results.push({
+      hours:  Math.round(darkHours * 10) / 10,
+      maxAlt: maxAlt > 0 ? Math.round(maxAlt) : 0,
+    });
+  }
+  return results;
+}
+
+function buildVisibilityChart(raDeg, decDeg) {
+  const canvas = document.getElementById('panel-visibility-chart');
+  if (!canvas) return;
+  if (panelChart) { panelChart.destroy(); panelChart = null; }
+
+  const monthly = computeMonthlyVisibility(raDeg, decDeg);
+  const labels  = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  const hours   = monthly.map(d => d.hours);
+  const maxAlts = monthly.map(d => d.maxAlt);
+
+  const maxHours      = Math.max(...hours, 0.1);
+  const peakThreshold = maxHours * 0.70;
+  const peakIndices   = hours.map((h, i) => h >= peakThreshold && h > 0 ? i : -1).filter(i => i >= 0);
+
+  const barColors = hours.map(h =>
+    h >= peakThreshold && h > 0 ? 'rgba(220,140,40,0.85)' : 'rgba(60,100,175,0.70)'
+  );
+
+  const bandPlugin = {
+    id: 'bandHighlight',
+    beforeDraw(chart) {
+      const { ctx, chartArea, scales } = chart;
+      if (!chartArea || !scales.x) return;
+      const slotW = chartArea.width / labels.length;
+      ctx.save();
+      ctx.fillStyle = 'rgba(200,110,20,0.10)';
+      peakIndices.forEach(i => {
+        const cx = scales.x.getPixelForValue(i);
+        ctx.fillRect(cx - slotW / 2, chartArea.top, slotW, chartArea.bottom - chartArea.top);
+      });
+      ctx.restore();
+    },
+  };
+
+  panelChart = new Chart(canvas, {
+    plugins: [bandPlugin],
+    data: {
+      labels,
+      datasets: [
+        {
+          type: 'bar',
+          label: 'Dark hrs above 20°',
+          data: hours,
+          backgroundColor: barColors,
+          yAxisID: 'y',
+          order: 2,
+        },
+        {
+          type: 'line',
+          label: 'Max altitude',
+          data: maxAlts,
+          borderColor: '#87ceeb',
+          backgroundColor: 'transparent',
+          pointBackgroundColor: '#87ceeb',
+          pointRadius: 2.5,
+          pointHoverRadius: 4,
+          borderWidth: 1.8,
+          tension: 0.35,
+          yAxisID: 'y2',
+          order: 1,
+        },
+      ],
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      animation: false,
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          backgroundColor: 'rgba(17,29,53,0.95)',
+          titleColor: '#87ceeb',
+          bodyColor: '#cccccc',
+          borderColor: '#2a3a60',
+          borderWidth: 1,
+          callbacks: {
+            title: ctx => ctx[0].label,
+            label: ctx => ctx.datasetIndex === 0
+              ? `${ctx.parsed.y.toFixed(1)} hrs above 20°`
+              : `Max altitude: ${ctx.parsed.y}°`,
+          },
+        },
+      },
+      scales: {
+        x: {
+          ticks:  { color: '#aabbcc', font: { size: 9 } },
+          grid:   { color: 'rgba(128,128,128,0.15)' },
+          border: { color: 'rgba(128,128,128,0.3)' },
+        },
+        y: {
+          position: 'left',
+          min: 0,
+          ticks:  { color: '#aabbcc', font: { size: 9 } },
+          grid:   { color: 'rgba(128,128,128,0.15)' },
+          border: { color: 'rgba(128,128,128,0.3)' },
+          title:  { display: true, text: 'hrs > 20°', color: '#aabbcc', font: { size: 9 } },
+        },
+        y2: {
+          position: 'right',
+          min: 0,
+          max: 90,
+          ticks: {
+            color: '#87ceeb', font: { size: 9 }, stepSize: 30,
+            callback: v => v + '°',
+          },
+          grid:   { drawOnChartArea: false },
+          border: { color: 'rgba(128,128,128,0.3)' },
+          title:  { display: true, text: 'max alt', color: '#87ceeb', font: { size: 9 } },
+        },
+      },
+    },
+  });
+}
+
 // ─── Detail panel ────────────────────────────────────────────────────────────
 
 async function fetchWikipediaData(messierNumber) {
@@ -723,6 +864,7 @@ async function fetchWikipediaData(messierNumber) {
 }
 
 function closeDetailPanel() {
+  if (panelChart) { panelChart.destroy(); panelChart = null; }
   document.getElementById('detail-panel').classList.remove('open');
   document.getElementById('panel-backdrop').classList.remove('open');
 }
@@ -758,6 +900,10 @@ function openDetailPanel(messierNum, commonName, objectType, constellation, magn
   // Open panel
   document.getElementById('detail-panel').classList.add('open');
   document.getElementById('panel-backdrop').classList.add('open');
+
+  // Build visibility chart (look up RA/Dec from allData)
+  const objData = allData.find(o => o.messierNumber === messierNum);
+  if (objData) buildVisibilityChart(objData.raDeg, objData.decDeg);
 
   // Fetch Wikipedia data asynchronously
   fetchWikipediaData(num).then(data => {
@@ -817,6 +963,10 @@ let plannerView   = 'gantt';
 let tonightsMode    = false;
 let userLatitude    = null;
 let userLongitude   = null;
+let panelChart      = null;
+
+const PANEL_LAT = 40.0;   // Lafayette, CO
+const PANEL_LON = -105.1;
 
 function getFilteredData() {
   return allData.filter(obj =>
