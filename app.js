@@ -770,7 +770,10 @@ function buildVisibilityChart(raDeg, decDeg) {
   };
 
   panelChart = new Chart(canvas, {
-    plugins: [bandPlugin],
+    plugins: [bandPlugin, {
+      id: 'autoResize',
+      afterInit(chart) { requestAnimationFrame(() => chart.resize()); },
+    }],
     data: {
       labels,
       datasets: [
@@ -901,9 +904,9 @@ function openDetailPanel(messierNum, commonName, objectType, constellation, magn
   document.getElementById('detail-panel').classList.add('open');
   document.getElementById('panel-backdrop').classList.add('open');
 
-  // Build visibility chart (look up RA/Dec from allData)
+  // Build visibility chart after panel slide-in transition (250ms) completes
   const objData = allData.find(o => o.messierNumber === messierNum);
-  if (objData) buildVisibilityChart(objData.raDeg, objData.decDeg);
+  if (objData) setTimeout(() => buildVisibilityChart(objData.raDeg, objData.decDeg), 270);
 
   // Fetch Wikipedia data asynchronously
   fetchWikipediaData(num).then(data => {
