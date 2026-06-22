@@ -716,13 +716,15 @@ function computeMonthlyVisibility(raDeg, decDeg) {
     let darkHours = 0;
     let maxAlt = -90;
     // Step every 15 min for 24 h starting at noon on the 15th
+    const lat = observerLat();
+    const lon = observerLon();
     for (let step = 0; step < 96; step++) {
       const d = new Date(2025, month, 15, 12, step * 15, 0);
-      const lst    = getLSTDeg(d, PANEL_LON);
+      const lst    = getLSTDeg(d, lon);
       const sun    = getSunRaDec(d);
-      const sunAlt = getAltitudeDeg(sun.raDeg, sun.decDeg, lst, PANEL_LAT);
+      const sunAlt = getAltitudeDeg(sun.raDeg, sun.decDeg, lst, lat);
       if (sunAlt < -18) {
-        const objAlt = getAltitudeDeg(raDeg, decDeg, lst, PANEL_LAT);
+        const objAlt = getAltitudeDeg(raDeg, decDeg, lst, lat);
         if (objAlt > 20) darkHours += 0.25;
         if (objAlt > maxAlt) maxAlt = objAlt;
       }
@@ -738,7 +740,31 @@ function computeMonthlyVisibility(raDeg, decDeg) {
 function buildVisibilityChart(raDeg, decDeg) {
   const canvas = document.getElementById('panel-visibility-chart');
   if (!canvas) return;
+  panelObjRaDec = { raDeg, decDeg };
   if (panelChart) { panelChart.destroy(); panelChart = null; }
+
+  // The panel slides in from off-screen; Chart.js renders blank if it measures
+  // the canvas before layout settles. Poll on animation frames until the
+  // container has a real width, then render.
+  const container = canvas.parentElement;
+  let attempts = 0;
+  (function waitForLayout() {
+    if (container.offsetWidth > 0)  renderVisibilityChart(canvas, raDeg, decDeg);
+    else if (attempts++ < 90)       requestAnimationFrame(waitForLayout);
+  })();
+}
+
+function renderVisibilityChart(canvas, raDeg, decDeg) {
+  if (panelChart) { panelChart.destroy(); panelChart = null; }
+
+  const lat = observerLat();
+  const titleEl = document.getElementById('panel-visibility-title');
+  if (titleEl) {
+    const latLabel = `${Math.abs(lat).toFixed(0)}°${lat >= 0 ? 'N' : 'S'}`;
+    titleEl.textContent = userLatitude !== null
+      ? `Visibility from your location (${latLabel})`
+      : `Visibility from ${latLabel} (default — set location for yours)`;
+  }
 
   const monthly = computeMonthlyVisibility(raDeg, decDeg);
   const labels  = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
@@ -770,10 +796,7 @@ function buildVisibilityChart(raDeg, decDeg) {
   };
 
   panelChart = new Chart(canvas, {
-    plugins: [bandPlugin, {
-      id: 'autoResize',
-      afterInit(chart) { requestAnimationFrame(() => chart.resize()); },
-    }],
+    plugins: [bandPlugin],
     data: {
       labels,
       datasets: [
@@ -868,6 +891,7 @@ async function fetchWikipediaData(messierNumber) {
 
 function closeDetailPanel() {
   if (panelChart) { panelChart.destroy(); panelChart = null; }
+  panelObjRaDec = null;
   document.getElementById('detail-panel').classList.remove('open');
   document.getElementById('panel-backdrop').classList.remove('open');
 }
@@ -904,9 +928,9 @@ function openDetailPanel(messierNum, commonName, objectType, constellation, magn
   document.getElementById('detail-panel').classList.add('open');
   document.getElementById('panel-backdrop').classList.add('open');
 
-  // Build visibility chart after panel slide-in transition (250ms) completes
+  // Build visibility chart (waits for panel layout internally)
   const objData = allData.find(o => o.messierNumber === messierNum);
-  if (objData) setTimeout(() => buildVisibilityChart(objData.raDeg, objData.decDeg), 270);
+  if (objData) buildVisibilityChart(objData.raDeg, objData.decDeg);
 
   // Fetch Wikipedia data asynchronously
   fetchWikipediaData(num).then(data => {
@@ -967,9 +991,14 @@ let tonightsMode    = false;
 let userLatitude    = null;
 let userLongitude   = null;
 let panelChart      = null;
+let panelObjRaDec   = null;   // {raDeg, decDeg} of the object shown in the open panel
 
-const PANEL_LAT = 40.0;   // Lafayette, CO
-const PANEL_LON = -105.1;
+// Fallback observer location (Lafayette, CO) used until a real one is detected.
+const DEFAULT_LAT = 40.0;
+const DEFAULT_LON = -105.1;
+
+function observerLat() { return userLatitude  !== null ? userLatitude  : DEFAULT_LAT; }
+function observerLon() { return userLongitude !== null ? userLongitude : DEFAULT_LON; }
 
 function getFilteredData() {
   return allData.filter(obj =>
@@ -1181,6 +1210,8 @@ async function init() {
     const lonStr = `${Math.abs(lon).toFixed(2)}°${lon >= 0 ? 'E' : 'W'}`;
     statusEl.textContent = `📍 ${latStr}, ${lonStr}`;
     updateChart();
+    // Refresh the open detail-panel chart so it reflects the new location
+    if (panelObjRaDec) buildVisibilityChart(panelObjRaDec.raDeg, panelObjRaDec.decDeg);
   }
 
   function tryGeolocation() {
@@ -1209,15 +1240,16 @@ async function init() {
   document.getElementById('tonights-sky-mode').addEventListener('change', e => {
     tonightsMode = e.target.checked;
     if (!tonightsMode) {
-      userLatitude  = null;
-      userLongitude = null;
+      // Keep the detected location (the detail-panel chart uses it); just stop
+      // the horizon filtering. updateChart() gates that on tonightsMode.
       document.getElementById('location-time').textContent = '';
       updateLocationBarVisibility();
       updateChart();
       return;
     }
     updateLocationBarVisibility();
-    tryGeolocation();
+    if (userLatitude === null) tryGeolocation();
+    else                       updateChart();
   });
 
   // Projection selector
@@ -1292,6 +1324,11 @@ async function init() {
     const [commonName, objectType, constellation, magnitude, distance, bestViewing, , , dimensions] = pt.customdata;
     openDetailPanel(pt.text, commonName, objectType, constellation, magnitude, distance, bestViewing, dimensions);
   });
+
+  // Detect the observer's location on load so the visibility chart reflects
+  // their real sky. If already granted this resolves silently; otherwise the
+  // browser prompts once. Denial just keeps the default location.
+  tryGeolocation();
 }
 
 // ─── Night Planner ────────────────────────────────────────────────────────────
