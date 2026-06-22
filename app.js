@@ -757,6 +757,15 @@ function buildVisibilityChart(raDeg, decDeg) {
 function renderVisibilityChart(canvas, raDeg, decDeg) {
   if (panelChart) { panelChart.destroy(); panelChart = null; }
 
+  // Surface a clear message if the Chart.js library never loaded (blocked CDN,
+  // offline, ad-blocker) instead of silently leaving a blank canvas.
+  if (typeof Chart === 'undefined') {
+    const c = canvas.parentElement;
+    c.innerHTML = '<div style="color:#e06c75; font-size:0.8rem; text-align:center; padding-top:60px;">Chart library failed to load.<br>Check your network/ad-blocker and reload.</div>';
+    console.error('[visibility chart] Chart.js (window.Chart) is undefined — the CDN script did not load.');
+    return;
+  }
+
   const lat = observerLat();
   const titleEl = document.getElementById('panel-visibility-title');
   if (titleEl) {
@@ -795,6 +804,7 @@ function renderVisibilityChart(canvas, raDeg, decDeg) {
     },
   };
 
+  try {
   panelChart = new Chart(canvas, {
     plugins: [bandPlugin],
     data: {
@@ -873,6 +883,11 @@ function renderVisibilityChart(canvas, raDeg, decDeg) {
       },
     },
   });
+  } catch (err) {
+    console.error('[visibility chart] failed to render:', err);
+    canvas.parentElement.innerHTML =
+      `<div style="color:#e06c75; font-size:0.8rem; text-align:center; padding-top:60px;">Chart failed to render.<br>${err.message}</div>`;
+  }
 }
 
 // ─── Detail panel ────────────────────────────────────────────────────────────
