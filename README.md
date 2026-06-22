@@ -4,6 +4,8 @@ An interactive web app for exploring all 110 Messier deep-sky objects — on an 
 
 **Live:** https://bbrannon4.github.io/messier-explorer/
 
+![Sky chart overview](screenshots/01-sky-chart.png)
+
 ## Running Locally
 
 The app loads its catalog with `fetch()`, which browsers block on `file://`, so it needs to be served over HTTP. From the project folder:
@@ -17,23 +19,34 @@ Then open http://localhost:8080. (Any static file server works.)
 ## Features
 
 ### Sky Chart
-- **Projections**: Switch between equirectangular, Mollweide, and stereographic views
-- **Filtering**: Filter by object type, constellation, season, apparent magnitude, and angular size
-- **Tonight's Sky**: Shows only the objects currently above the horizon for your location
-- **Constellation context**: 15+ major constellations with lines, labels, and bright stars
-- **Scale by magnitude**: Optionally size markers by apparent brightness
+
+All 110 Messier objects plotted by right ascension and declination, with 15+ major constellations (lines, labels, and bright stars) for context. Filter by object type, constellation, season, apparent magnitude, and angular size; optionally scale markers by brightness.
+
+**Multiple projections** — switch between equirectangular, Mollweide, and a north-polar stereographic planisphere:
+
+![Stereographic projection](screenshots/02-projection-stereographic.png)
+
+**Tonight's Sky** — enter your location (or let the browser detect it) to show only the objects currently above your horizon:
+
+![Tonight's Sky](screenshots/03-tonights-sky.png)
 
 ### Night Planner
-- **Timeline view**: A Gantt-style chart of each object's visibility windows across the night, colored by peak altitude, with twilight/night shading
-- **Altitude view**: Altitude-over-time curves for the filtered objects
-- Sky Chart filters carry over, so you can plan a focused list
+
+Plan a whole night of observing. The Sky Chart filters carry over, so you can narrow to a focused target list.
+
+**Timeline view** — a Gantt-style chart of each object's visibility windows across the night, colored by peak altitude, with twilight and night shading:
+
+![Night Planner timeline](screenshots/04-night-planner-timeline.png)
+
+**Altitude view** — altitude-over-time curves for the filtered objects, so you can see exactly when each one rides highest:
+
+![Night Planner altitude curves](screenshots/05-night-planner-altitude.png)
 
 ### Object Details
-- Click any object — on the sky chart, the Timeline, or the Altitude view — for a side panel with a description, image, and Wikipedia data
-- **Visibility by month**: A chart showing, for each month, hours the object spends above 20° during astronomical dark plus its max transit altitude, with peak months highlighted
 
-### Location
-- Detected automatically on load (with a manual lat/lon fallback), and used consistently across all views
+Click any object — on the sky chart, the Timeline, or the Altitude view — for a side panel with a description, image, and Wikipedia data. It includes a **monthly visibility chart**: for your location, the hours each month the object spends above 20° during astronomical dark (bars) and its max transit altitude (line), with the best months highlighted.
+
+![Object detail panel with monthly visibility chart](screenshots/06-object-detail.png)
 
 ## Data
 
