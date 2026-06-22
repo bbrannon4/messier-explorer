@@ -1231,13 +1231,13 @@ async function init() {
 
   function tryGeolocation() {
     if (!navigator.geolocation) {
-      statusEl.textContent = 'Geolocation not supported — enter coordinates below';
+      statusEl.textContent = 'Geolocation not supported — enter coordinates →';
       return;
     }
     statusEl.textContent = 'Requesting location…';
     navigator.geolocation.getCurrentPosition(
       pos  => applyLocation(pos.coords.latitude, pos.coords.longitude),
-      ()   => { statusEl.textContent = 'Location denied — enter coordinates below'; },
+      ()   => { statusEl.textContent = 'Location denied — enter coordinates →'; },
       { timeout: 10000 }
     );
   }
@@ -1461,10 +1461,12 @@ function buildPlannerChart(filteredData) {
         y: [yLabels[i]],
         marker: { color: altToColor(peakAlt) },
         showlegend: false,
+        customdata: [obj.messierNumber],
         hovertemplate:
           `<b>${obj.messierNumber}</b>${obj.commonName && obj.commonName !== '–' ? ' — ' + obj.commonName : ''}<br>` +
           `${formatHour(win.x0)} – ${formatHour(win.x1)}<br>` +
-          `Peak: ${peakAlt.toFixed(0)}°  ·  ${obj.objectType}<extra></extra>`,
+          `Peak: ${peakAlt.toFixed(0)}°  ·  ${obj.objectType}<br>` +
+          `<i>click for details</i><extra></extra>`,
       });
     }
   }
@@ -1520,6 +1522,17 @@ function buildPlannerChart(filteredData) {
       { x: nightX1, y: 1.02, xref: 'x', yref: 'paper', text: 'sunrise',  showarrow: false, font: { color: 'rgba(200,160,80,0.6)',  size: 9 }, xanchor: 'center' },
     ],
   }, { displayModeBar: true, modeBarButtonsToRemove: ['lasso2d', 'select2d'], responsive: false });
+
+  // Click a bar → open detail panel (same as main sky chart / altitude view)
+  chartEl.removeAllListeners?.('plotly_click');
+  chartEl.on('plotly_click', data => {
+    const pt = data.points[0];
+    if (!pt.customdata) return;
+    const messierNum = Array.isArray(pt.customdata) ? pt.customdata[0] : pt.customdata;
+    const obj = allData.find(o => o.messierNumber === messierNum);
+    if (!obj) return;
+    openDetailPanel(obj.messierNumber, obj.commonName, obj.objectType, obj.constellation, obj.magnitude, obj.distance, obj.bestViewing, obj.dimensions);
+  });
 }
 
 const ALT_PALETTE = [
@@ -1661,8 +1674,8 @@ function updatePlanner() {
 }
 
 function updateLocationBarVisibility() {
-  document.getElementById('location-bar').style.display =
-    (tonightsMode || currentTab === 'planner') ? '' : 'none';
+  // Location controls live in the tab row and stay visible on every tab.
+  document.getElementById('location-bar').style.display = '';
 }
 
 function initPlanner() {

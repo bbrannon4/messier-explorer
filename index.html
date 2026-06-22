@@ -183,15 +183,29 @@
         <h1 class="text-center mb-3">Interactive Messier Sky Chart</h1>
         <hr class="mb-3">
 
-        <!-- Tab nav -->
-        <ul class="nav main-tabs mb-3">
-          <li class="nav-item">
-            <button class="nav-link active" data-tab="skychart">Sky Chart</button>
-          </li>
-          <li class="nav-item">
-            <button class="nav-link" data-tab="planner">Night Planner</button>
-          </li>
-        </ul>
+        <!-- Tab nav + location (location is consistent across all tabs) -->
+        <div class="main-tabs mb-3 d-flex align-items-end" style="gap:14px; flex-wrap:wrap;">
+          <ul class="nav" style="flex-wrap:nowrap; border:none;">
+            <li class="nav-item">
+              <button class="nav-link active" data-tab="skychart">Sky Chart</button>
+            </li>
+            <li class="nav-item">
+              <button class="nav-link" data-tab="planner">Night Planner</button>
+            </li>
+          </ul>
+          <div id="location-bar" class="ms-auto d-flex align-items-center" style="gap:10px; flex-wrap:wrap; padding-bottom:6px;">
+            <span id="location-status" style="color:#87ceeb; font-size:0.85rem;"></span>
+            <span id="location-time" style="color:#aabbcc; font-size:0.8rem;"></span>
+            <div class="input-group input-group-sm" style="width:auto; flex-wrap:nowrap;">
+              <span class="input-group-text" style="background:#1a2540;border-color:#2a3a60;color:#aabbcc;font-size:0.78rem;">Lat</span>
+              <input type="number" class="form-control" id="manual-lat" placeholder="40.7" min="-90" max="90" step="0.1" style="background:#1a2540;border-color:#2a3a60;color:white;width:72px;font-size:0.78rem;">
+              <span class="input-group-text" style="background:#1a2540;border-color:#2a3a60;color:#aabbcc;font-size:0.78rem;">Lon</span>
+              <input type="number" class="form-control" id="manual-lon" placeholder="-74.0" min="-180" max="180" step="0.1" style="background:#1a2540;border-color:#2a3a60;color:white;width:82px;font-size:0.78rem;">
+              <button class="btn btn-primary btn-sm" id="apply-location" style="font-size:0.78rem;">Apply</button>
+              <button class="btn btn-outline-secondary btn-sm" id="detect-location" style="font-size:0.78rem;" title="Request location from browser">📍 Detect</button>
+            </div>
+          </div>
+        </div>
 
         <!-- Sky Chart control bar -->
         <div class="row mb-3" id="ctrl-skychart">
@@ -268,7 +282,7 @@
 
               <div class="ctrl-divider"></div>
 
-              <span style="color:#556688; font-size:0.78rem;">Sky Chart filters apply · set location below</span>
+              <span style="color:#556688; font-size:0.78rem;">Sky Chart filters apply · set location above</span>
             </div>
           </div>
         </div>
@@ -368,24 +382,6 @@
           </div>
         </div>
 
-        <!-- Location bar (shown for Tonight's Sky or Night Planner) -->
-        <div id="location-bar" class="row mb-2" style="display:none;">
-          <div class="col-12">
-            <div class="location-bar">
-              <span id="location-status" style="color:#87ceeb; font-size:0.85rem;"></span>
-              <span id="location-time" style="color:#aabbcc; font-size:0.8rem;"></span>
-              <div class="input-group input-group-sm ms-auto" style="width:auto; flex-wrap:nowrap;">
-                <span class="input-group-text" style="background:#1a2540;border-color:#2a3a60;color:#aabbcc;font-size:0.78rem;">Lat</span>
-                <input type="number" class="form-control" id="manual-lat" placeholder="40.7" min="-90" max="90" step="0.1" style="background:#1a2540;border-color:#2a3a60;color:white;width:72px;font-size:0.78rem;">
-                <span class="input-group-text" style="background:#1a2540;border-color:#2a3a60;color:#aabbcc;font-size:0.78rem;">Lon</span>
-                <input type="number" class="form-control" id="manual-lon" placeholder="-74.0" min="-180" max="180" step="0.1" style="background:#1a2540;border-color:#2a3a60;color:white;width:82px;font-size:0.78rem;">
-                <button class="btn btn-primary btn-sm" id="apply-location" style="font-size:0.78rem;">Apply</button>
-                <button class="btn btn-outline-secondary btn-sm" id="detect-location" style="font-size:0.78rem;" title="Request location from browser">📍 Detect</button>
-              </div>
-            </div>
-          </div>
-        </div>
-
         <!-- Object count -->
         <div class="row mb-2">
           <div class="col-12 px-1">
@@ -458,7 +454,7 @@
   <script src="https://cdn.plot.ly/plotly-2.27.0.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
-  <script src="app.js?v=20260621"></script>
+  <script src="app.js?v=20260621c"></script>
   <script data-goatcounter="https://messier-explorer.goatcounter.com/count"
           async src="//gc.zgo.at/count.js"></script>
 </body>
