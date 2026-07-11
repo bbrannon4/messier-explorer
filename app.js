@@ -1019,9 +1019,11 @@ function magToSize(mag) {
 // user can widen it up to MAG_SLIDER_MAX.
 const DEFAULT_MAG_MAX = 9;
 const MAG_SLIDER_MAX  = 16;
-// Angular-size filter: hide objects smaller than sizeMin arcminutes. Default 0
-// (show all sizes); slider tops out at 30′ (only ~50 objects are larger).
+// Angular-size filter: hide objects smaller than sizeMin arcminutes. Default 1′
+// strips sub-arcminute clutter while keeping all 110 Messier (smallest is the
+// Ring, ~1.3′). Slider tops out at 30′ (only ~50 objects are larger).
 const SIZE_SLIDER_MAX = 30;
+const DEFAULT_SIZE_MIN = 1;
 // Above this many objects on screen the field is too dense to label legibly, so
 // suppress the on-chart labels and show the "zoom in / tighten filters" hint.
 // (Only Messier/Caldwell/named/bright objects are ever labelled to begin with.)
@@ -1043,7 +1045,7 @@ let selectedSeasons       = new Set();
 let selectedCatalogs      = new Set();
 let magMin = 0;
 let magMax = DEFAULT_MAG_MAX;
-let sizeMin = 0;   // minimum apparent size in arcminutes
+let sizeMin = DEFAULT_SIZE_MIN;   // minimum apparent size in arcminutes
 let scaleSizeByMag  = false;
 let currentTab    = 'skychart';
 let plannerDate   = '';
