@@ -1307,29 +1307,18 @@ async function init() {
   );
 
   // Magnitude range slider
-  const magMinEl    = document.getElementById('mag-min');
+  // Single limiting-magnitude slider: caps the faint end at magMax. magMin stays
+  // 0 so the bright end is always fully open — the default (magMax = 9) shows the
+  // brightest objects, and dragging toward MAG_SLIDER_MAX reveals fainter ones.
   const magMaxEl    = document.getElementById('mag-max');
-  const magMinLabel = document.getElementById('mag-min-label');
   const magMaxLabel = document.getElementById('mag-max-label');
 
-  // The NGC+IC catalog reaches ~mag 16; start capped at DEFAULT_MAG_MAX.
-  magMinEl.max = magMaxEl.max = MAG_SLIDER_MAX;
-  magMinEl.value = magMin;
+  magMaxEl.max   = MAG_SLIDER_MAX;
   magMaxEl.value = magMax;
-  magMinLabel.textContent = magMin.toFixed(1);
   magMaxLabel.textContent = magMax.toFixed(1);
 
-  magMinEl.addEventListener('input', () => {
-    magMin = parseFloat(magMinEl.value);
-    if (magMin > magMax) { magMax = magMin; magMaxEl.value = magMin; }
-    magMinLabel.textContent = magMin.toFixed(1);
-    magMaxLabel.textContent = magMax.toFixed(1);
-    updateChart();
-  });
   magMaxEl.addEventListener('input', () => {
     magMax = parseFloat(magMaxEl.value);
-    if (magMax < magMin) { magMin = magMax; magMinEl.value = magMax; }
-    magMinLabel.textContent = magMin.toFixed(1);
     magMaxLabel.textContent = magMax.toFixed(1);
     updateChart();
   });
