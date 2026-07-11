@@ -1019,6 +1019,9 @@ function magToSize(mag) {
 // user can widen it up to MAG_SLIDER_MAX.
 const DEFAULT_MAG_MAX = 9;
 const MAG_SLIDER_MAX  = 16;
+// Angular-size filter: hide objects smaller than sizeMin arcminutes. Default 0
+// (show all sizes); slider tops out at 30′ (only ~50 objects are larger).
+const SIZE_SLIDER_MAX = 30;
 // Above this many objects on screen the field is too dense to label legibly, so
 // suppress the on-chart labels and show the "zoom in / tighten filters" hint.
 // (Only Messier/Caldwell/named/bright objects are ever labelled to begin with.)
@@ -1040,6 +1043,7 @@ let selectedSeasons       = new Set();
 let selectedCatalogs      = new Set();
 let magMin = 0;
 let magMax = DEFAULT_MAG_MAX;
+let sizeMin = 0;   // minimum apparent size in arcminutes
 let scaleSizeByMag  = false;
 let currentTab    = 'skychart';
 let plannerDate   = '';
@@ -1064,6 +1068,10 @@ function getFilteredData() {
     if (!selectedTypes.has(obj.objectType)) return false;
     if (!selectedConstellations.has(obj.constellation)) return false;
     if (!selectedSeasons.has(obj.season)) return false;
+    // Angular-size filter: hide objects known to be smaller than sizeMin. Objects
+    // with no measured size (point sources, unmeasured) pass through so we never
+    // drop a real object for lack of a measurement.
+    if (Number.isFinite(obj.sizeArcminVal) && obj.sizeArcminVal < sizeMin) return false;
     // Messier & Caldwell objects always pass the magnitude filter so the
     // familiar catalog is never hidden (many have no magnitude at all).
     if (obj.catalog === 'Messier' || obj.catalog === 'Caldwell') return true;
@@ -1290,6 +1298,7 @@ function parseCSV(csvText) {
       distance:      '',
       constellation: (row['constellation'] || 'Unknown').trim(),
       dimensions:    (row['size_arcmin'] || '').trim(),
+      sizeArcminVal: parseFloat(row['size_arcmin']),   // NaN when size is unknown
       bestViewing:   season,
       season,
       raDeg:  parseFloat(row['ra_deg'])  || 0,
@@ -1307,6 +1316,22 @@ async function init() {
   );
 
   // Magnitude range slider
+  // Minimum apparent-size slider: hides objects smaller than sizeMin arcminutes.
+  // Here "minimum" is the natural sense — larger arcminutes = physically bigger —
+  // so it isn't inverted like magnitude. Default 0 shows every size.
+  const sizeMinEl    = document.getElementById('size-min');
+  const sizeMinLabel = document.getElementById('size-min-label');
+
+  sizeMinEl.max   = SIZE_SLIDER_MAX;
+  sizeMinEl.value = sizeMin;
+  sizeMinLabel.textContent = sizeMin.toFixed(1) + '′';
+
+  sizeMinEl.addEventListener('input', () => {
+    sizeMin = parseFloat(sizeMinEl.value);
+    sizeMinLabel.textContent = sizeMin.toFixed(1) + '′';
+    updateChart();
+  });
+
   // Single limiting-magnitude slider: caps the faint end at magMax. magMin stays
   // 0 so the bright end is always fully open — the default (magMax = 9) shows the
   // brightest objects, and dragging toward MAG_SLIDER_MAX reveals fainter ones.
