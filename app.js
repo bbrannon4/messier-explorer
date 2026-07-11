@@ -700,6 +700,19 @@ function getAltitudeDeg(raDeg, decDeg, lstDeg, latDeg) {
   ) * 180 / Math.PI;
 }
 
+// Returns azimuth in degrees measured clockwise from North (0=N, 90=E, 180=S,
+// 270=W). Shares the hour-angle / Dec / latitude inputs with getAltitudeDeg.
+function getAzimuthDeg(raDeg, decDeg, lstDeg, latDeg) {
+  const haR  = ((lstDeg - raDeg + 360) % 360) * Math.PI / 180;
+  const decR = decDeg * Math.PI / 180;
+  const latR = latDeg * Math.PI / 180;
+  const az = Math.atan2(
+    Math.sin(haR),
+    Math.cos(haR) * Math.sin(latR) - Math.tan(decR) * Math.cos(latR)
+  ) * 180 / Math.PI + 180;   // atan2 form gives az from South; +180 -> from North
+  return (az % 360 + 360) % 360;
+}
+
 // ─── Monthly visibility chart ─────────────────────────────────────────────────
 
 function computeMonthlyVisibility(raDeg, decDeg) {
@@ -1788,14 +1801,145 @@ function buildAltitudeChart(filteredData) {
   });
 }
 
+// ─── Sky Path (alt-azimuth compass) view ─────────────────────────────────────
+
+const COMPASS_POINTS = ['N', 'NNE', 'NE', 'ENE', 'E', 'ESE', 'SE', 'SSE',
+  'S', 'SSW', 'SW', 'WSW', 'W', 'WNW', 'NW', 'NNW'];
+function compassDir(az) { return COMPASS_POINTS[Math.round(az / 22.5) % 16]; }
+
+function buildSkyPathChart(filteredData) {
+  const chartEl = document.getElementById('planner-skypath');
+  if (userLatitude === null) { chartEl.style.display = 'none'; return; }
+
+  const [yr, mo, dy] = plannerDate.split('-').map(Number);
+  const steps = Array.from({ length: 65 }, (_, i) => {
+    const h = 16 + i * 0.25;
+    return { x: h, date: new Date(yr, mo - 1, dy, Math.floor(h), Math.round((h % 1) * 60), 0) };
+  });
+  // Sun altitude at each step → twilight (−18°..0°) vs full dark (< −18°).
+  const sunAlts = steps.map(s => {
+    const sun = getSunRaDec(s.date);
+    return getAltitudeDeg(sun.raDeg, sun.decDeg, getLSTDeg(s.date, userLongitude), userLatitude);
+  });
+
+  // Per-object alt/az path, keeping only objects that clear the min altitude
+  // during darkness; rank by peak altitude and cap like the other views.
+  const paths = filteredData.map(obj => {
+    let peakAlt = -90, peakIdx = -1;
+    const rows = steps.map((s, i) => {
+      const lst = getLSTDeg(s.date, userLongitude);
+      const alt = getAltitudeDeg(obj.raDeg, obj.decDeg, lst, userLatitude);
+      const az  = getAzimuthDeg(obj.raDeg, obj.decDeg, lst, userLatitude);
+      if (sunAlts[i] < 0 && alt > peakAlt) { peakAlt = alt; peakIdx = i; }
+      return { alt, az, i };
+    });
+    return { obj, rows, peakAlt, peakIdx };
+  }).filter(p => p.peakAlt >= plannerMinAlt)
+    .sort((a, b) => b.peakAlt - a.peakAlt);
+
+  const allCount = paths.length;
+  const visible  = paths.slice(0, MAX_PLANNER_OBJECTS);
+
+  document.getElementById('object-count').textContent = allCount
+    ? (allCount > visible.length
+        ? `${allCount} objects visible tonight · showing the ${visible.length} highest-transiting · tighten filters to narrow`
+        : `${allCount} objects visible tonight · showing their path across the sky`)
+    : `No objects above ${plannerMinAlt}° for the selected night`;
+
+  const traces = [];
+  visible.forEach((p, idx) => {
+    const color = ALT_PALETTE[idx % ALT_PALETTE.length];
+    const dash  = ALT_DASHES[Math.floor(idx / ALT_PALETTE.length) % ALT_DASHES.length];
+    // Clip below-horizon points (break the line at the horizon with null).
+    const r = [], theta = [], mSize = [], mSymbol = [], mLine = [], cust = [], hov = [];
+    for (const row of p.rows) {
+      const above = row.alt >= 0;
+      r.push(above ? 90 - row.alt : null);
+      theta.push(above ? row.az : null);
+      const hourly = row.i % 4 === 0;               // whole-hour marker
+      const isTransit = row.i === p.peakIdx;
+      mSize.push(isTransit ? 13 : (hourly ? 7 : 0));
+      // Full dark = filled marker; twilight = hollow marker; transit = star.
+      const dark = sunAlts[row.i] < -18;
+      mSymbol.push(isTransit ? 'star' : (dark ? 'circle' : 'circle-open'));
+      mLine.push(dark ? 0 : 1.5);
+      cust.push(p.obj.id);
+      hov.push(`${formatHour(steps[row.i].x)} · Alt ${row.alt.toFixed(0)}° · ${compassDir(row.az)} ${row.az.toFixed(0)}°`);
+    }
+    traces.push({
+      type: 'scatterpolar',
+      r, theta,
+      mode: 'lines+markers',
+      name: plannerLabel(p.obj),
+      line: { color, width: 2, dash },
+      marker: { size: mSize, symbol: mSymbol, color,
+        line: { color, width: mLine } },
+      connectgaps: false,
+      customdata: cust,
+      text: hov,
+      hovertemplate: `<b>${plannerLabel(p.obj)}</b><br>%{text}<extra></extra>`,
+    });
+  });
+
+  if (!visible.length) {
+    Plotly.react('planner-skypath', [], {
+      paper_bgcolor: '#0B1426', plot_bgcolor: '#0B1426', height: 300,
+      annotations: [{ text: `No objects above ${plannerMinAlt}° for the selected night`, x: 0.5, y: 0.5, xref: 'paper', yref: 'paper', showarrow: false, font: { color: '#87ceeb', size: 14 } }],
+      margin: { l: 20, r: 20, t: 20, b: 20 },
+    }, PLOTLY_CONFIG);
+    return;
+  }
+
+  Plotly.react('planner-skypath', traces, {
+    paper_bgcolor: '#0B1426',
+    height: 640,
+    font: { color: 'white', family: 'Arial, Helvetica, sans-serif' },
+    margin: { l: 40, r: 40, t: 30, b: 30 },
+    showlegend: true,
+    legend: { bgcolor: 'rgba(26,37,64,0.85)', font: { size: 11, color: 'white' }, x: 1.02, y: 1 },
+    polar: {
+      bgcolor: '#0d1830',
+      // Horizon at the outer rim, zenith at the center (r = 90 − altitude).
+      radialaxis: {
+        range: [0, 90], angle: 90,
+        tickvals: [0, 30, 60, 90], ticktext: ['90°', '60°', '30°', '0°'],
+        tickfont: { color: '#aabbcc', size: 10 }, gridcolor: 'rgba(128,128,128,0.25)',
+        linecolor: 'rgba(128,128,128,0.25)',
+      },
+      // Compass rose: N at top, clockwise through E / S / W.
+      angularaxis: {
+        direction: 'clockwise', rotation: 90,
+        tickmode: 'array', tickvals: [0, 45, 90, 135, 180, 225, 270, 315],
+        ticktext: ['N', 'NE', 'E', 'SE', 'S', 'SW', 'W', 'NW'],
+        tickfont: { color: '#ccddee', size: 12 }, gridcolor: 'rgba(128,128,128,0.2)',
+        linecolor: 'rgba(128,128,128,0.25)',
+      },
+    },
+    annotations: [{
+      x: 0, y: 1.04, xref: 'paper', yref: 'paper', showarrow: false, xanchor: 'left',
+      text: '● full dark   ○ twilight   ★ transit   ·   hourly markers',
+      font: { color: '#8fa4c4', size: 11 },
+    }],
+  }, { displayModeBar: true, modeBarButtonsToRemove: ['lasso2d', 'select2d'], responsive: false });
+
+  const el = document.getElementById('planner-skypath');
+  el.removeAllListeners?.('plotly_click');
+  el.on('plotly_click', data => {
+    const pt = data.points[0];
+    if (!pt.customdata) return;
+    openDetailPanel(Array.isArray(pt.customdata) ? pt.customdata[0] : pt.customdata);
+  });
+}
+
 function updatePlanner() {
   if (currentTab !== 'planner') return;
   const data = getFilteredData();
-  const isGantt = plannerView === 'gantt';
-  document.getElementById('planner-chart').style.display    = isGantt ? '' : 'none';
-  document.getElementById('planner-altitude').style.display = isGantt ? 'none' : '';
-  if (isGantt) buildPlannerChart(data);
-  else         buildAltitudeChart(data);
+  document.getElementById('planner-chart').style.display    = plannerView === 'gantt'    ? '' : 'none';
+  document.getElementById('planner-altitude').style.display = plannerView === 'altitude' ? '' : 'none';
+  document.getElementById('planner-skypath').style.display  = plannerView === 'skypath'  ? '' : 'none';
+  if      (plannerView === 'gantt')    buildPlannerChart(data);
+  else if (plannerView === 'altitude') buildAltitudeChart(data);
+  else                                 buildSkyPathChart(data);
 }
 
 function updateLocationBarVisibility() {
