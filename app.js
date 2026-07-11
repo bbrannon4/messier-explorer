@@ -2,43 +2,54 @@
 
 // ─── Object styling ───────────────────────────────────────────────────────────
 
-const OBJECT_STYLES = {
-  'Supernova remnant':                              { symbol: 'triangle-up',  color: '#C66EC6', size: 8 },
-  'Globular cluster':                               { symbol: 'star',         color: '#96CEB4', size: 8 },
-  'Open cluster':                                   { symbol: 'star-open',    color: '#A8D4C1', size: 8 },
-  'Nebula with cluster':                            { symbol: 'square-cross', color: '#D187D1', size: 8 },
-  'H II region nebula with cluster':                { symbol: 'square-cross', color: '#D187D1', size: 8 },
-  'Milky Way star cloud':                           { symbol: 'star-dot',     color: '#BCDACF', size: 8 },
-  'Planetary nebula':                               { symbol: 'square',       color: '#DDA0DD', size: 8 },
-  'Spiral galaxy':                                  { symbol: 'circle',       color: '#FF6B6B', size: 8 },
-  'Dwarf elliptical galaxy':                        { symbol: 'circle-dot',   color: '#FFB1B1', size: 8 },
-  'Optical Double':                                 { symbol: 'diamond',      color: '#FFEAA7', size: 8 },
-  'H II region nebula':                             { symbol: 'square-open',  color: '#E6B3E6', size: 8 },
-  'H II region nebula (part of the Orion Nebula)':  { symbol: 'square-open',  color: '#E6B3E6', size: 8 },
-  'Elliptical galaxy':                              { symbol: 'circle-open',  color: '#FF8E8E', size: 8 },
-  'Barred Spiral galaxy':                           { symbol: 'circle-cross', color: '#FF4848', size: 8 },
-  'Asterism':                                       { symbol: 'diamond-open', color: '#FFE074', size: 8 },
-  'Diffuse nebula':                                 { symbol: 'square-dot',   color: '#F0C6F0', size: 8 },
-  'Starburst galaxy':                               { symbol: 'circle',       color: '#FF2525', size: 8 },
-  'Lenticular galaxy':                              { symbol: 'circle-x',     color: '#FFA0A0', size: 8 },
+// Object types use OpenNGC's short codes (G, OCl, PN, …). TYPE_INFO maps each
+// code to a human label, a broad category (for the grouped Type filter and the
+// category master toggles), and a Plotly marker style.
+const MARKER_SIZE = 7;
+const TYPE_INFO = {
+  // Galaxies
+  'G':      { label: 'Galaxy',              category: 'Galaxy',  symbol: 'circle',       color: '#FF6B6B' },
+  'GPair':  { label: 'Galaxy Pair',         category: 'Galaxy',  symbol: 'circle-open',  color: '#FF8E8E' },
+  'GTrpl':  { label: 'Galaxy Triplet',      category: 'Galaxy',  symbol: 'circle-open',  color: '#FFA0A0' },
+  'GGroup': { label: 'Galaxy Group',        category: 'Galaxy',  symbol: 'circle-open',  color: '#FFB1B1' },
+  // Clusters
+  'GCl':    { label: 'Globular Cluster',    category: 'Cluster', symbol: 'star',         color: '#96CEB4' },
+  'OCl':    { label: 'Open Cluster',        category: 'Cluster', symbol: 'star-open',    color: '#A8D4C1' },
+  'Cl+N':   { label: 'Cluster + Nebula',    category: 'Cluster', symbol: 'star-dot',     color: '#BCDACF' },
+  '*Ass':   { label: 'Stellar Association', category: 'Cluster', symbol: 'star-triangle-up-open', color: '#BCDACF' },
+  // Nebulae
+  'PN':     { label: 'Planetary Nebula',    category: 'Nebula',  symbol: 'square',       color: '#DDA0DD' },
+  'HII':    { label: 'H II Region',         category: 'Nebula',  symbol: 'square-open',  color: '#E6B3E6' },
+  'EmN':    { label: 'Emission Nebula',     category: 'Nebula',  symbol: 'square',       color: '#E6A8E6' },
+  'RfN':    { label: 'Reflection Nebula',   category: 'Nebula',  symbol: 'square-dot',   color: '#C9B3E6' },
+  'Neb':    { label: 'Nebula',              category: 'Nebula',  symbol: 'square-dot',   color: '#F0C6F0' },
+  'SNR':    { label: 'Supernova Remnant',   category: 'Nebula',  symbol: 'triangle-up',  color: '#C66EC6' },
+  'DrkN':   { label: 'Dark Nebula',         category: 'Nebula',  symbol: 'square-open',  color: '#9AA0AA' },
+  // Other
+  'Ast':    { label: 'Asterism',            category: 'Other',   symbol: 'diamond-open', color: '#FFE074' },
+  '*':      { label: 'Star',                category: 'Other',   symbol: 'diamond',      color: '#FFEAA7' },
+  '**':     { label: 'Double Star',         category: 'Other',   symbol: 'diamond',      color: '#FFEAA7' },
+  '***':    { label: 'Triple Star',         category: 'Other',   symbol: 'diamond',      color: '#FFEAA7' },
+  'Nova':   { label: 'Nova',                category: 'Other',   symbol: 'diamond',      color: '#FFD166' },
+  'Dup':    { label: 'Duplicate',           category: 'Other',   symbol: 'diamond',      color: '#CCCCCC' },
+  'Other':  { label: 'Other',               category: 'Other',   symbol: 'diamond',      color: '#FFEAA7' },
 };
+const TYPE_FALLBACK = { label: 'Other', category: 'Other', symbol: 'diamond', color: '#FFEAA7' };
 
-function getObjectStyle(objType) {
-  if (OBJECT_STYLES[objType]) return OBJECT_STYLES[objType];
-  const lower = objType.toLowerCase();
-  if (lower.includes('galaxy'))                             return { symbol: 'circle',  color: '#FF6B6B', size: 8 };
-  if (lower.includes('nebula'))                             return { symbol: 'square',  color: '#DDA0DD', size: 8 };
-  if (lower.includes('cluster') || lower.includes('cloud')) return { symbol: 'star',    color: '#96CEB4', size: 8 };
-  return { symbol: 'diamond', color: '#FFEAA7', size: 8 };
+function typeInfo(code)      { return TYPE_INFO[code] || TYPE_FALLBACK; }
+function typeLabel(code)     { return typeInfo(code).label; }
+function getObjectStyle(code) {
+  const t = typeInfo(code);
+  return { symbol: t.symbol, color: t.color, size: MARKER_SIZE };
 }
+function classifyObjectType(code) { return typeInfo(code).category; }
 
-function classifyObjectType(objType) {
-  const lower = (objType || '').toLowerCase();
-  if (lower.includes('galaxy'))                             return 'Galaxy';
-  if (lower.includes('nebula'))                             return 'Nebula';
-  if (lower.includes('cluster') || lower.includes('cloud')) return 'Cluster';
-  return 'Other';
-}
+// Broad category for a human-readable Type label (used when grouping the Type
+// filter, whose values are labels rather than codes).
+const LABEL_TO_CATEGORY = Object.fromEntries(
+  Object.values(TYPE_INFO).map(t => [t.label, t.category])
+);
+function categoryOfLabel(label) { return LABEL_TO_CATEGORY[label] || 'Other'; }
 
 // ─── Star data ────────────────────────────────────────────────────────────────
 // [name, ra_deg, dec_deg, magnitude, constellation]
@@ -274,30 +285,6 @@ const CONSTELLATION_LINES = {
     messierObjects: ['M27','M56','M57','M71'],
   },
 };
-
-// ─── Coordinate parsing ───────────────────────────────────────────────────────
-
-function raToDegrees(raStr) {
-  if (!raStr) return 0;
-  raStr = raStr.trim();
-  let m = raStr.match(/(\d+)h\s*([\d.]+)m\s*([\d.]+)s?/);
-  if (m) return (parseFloat(m[1]) + parseFloat(m[2]) / 60 + parseFloat(m[3]) / 3600) * 15;
-  m = raStr.match(/(\d+)h\s*([\d.]+)m/);
-  if (m) return (parseFloat(m[1]) + parseFloat(m[2]) / 60) * 15;
-  return 0;
-}
-
-function decToDegrees(decStr) {
-  if (!decStr) return 0;
-  decStr = decStr.trim();
-  const sign = (decStr[0] === '−' || decStr[0] === '-') ? -1 : 1;
-  const clean = decStr.replace(/[+−\-°′″'"]/g, ' ').trim();
-  const parts = clean.split(/\s+/).filter(p => p.length > 0);
-  const deg = parseFloat(parts[0]) || 0;
-  const min = parseFloat(parts[1]) || 0;
-  const sec = parseFloat(parts[2]) || 0;
-  return sign * (deg + min / 60 + sec / 3600);
-}
 
 // ─── Projection math ──────────────────────────────────────────────────────────
 
@@ -624,12 +611,14 @@ function buildTraces(data, options) {
   // 4. Messier objects grouped by category then type
   const byCategory = {};
   for (const obj of data) {
-    const cat = classifyObjectType(obj.objectType);
+    const cat = obj.category;
     if (!byCategory[cat]) byCategory[cat] = {};
     if (!byCategory[cat][obj.objectType]) byCategory[cat][obj.objectType] = [];
     byCategory[cat][obj.objectType].push(obj);
   }
 
+  // With the full NGC+IC catalog a trace can hold thousands of points, so use
+  // WebGL (scattergl) for the object markers; grid/lines/stars stay on SVG.
   for (const category of ['Galaxy', 'Nebula', 'Cluster', 'Other']) {
     if (!byCategory[category]) continue;
     for (const objType of Object.keys(byCategory[category]).sort()) {
@@ -640,38 +629,41 @@ function buildTraces(data, options) {
         : byCategory[category][objType];
       if (!objects.length) continue;
 
-      const style   = getObjectStyle(objType);
+      const style   = getObjectStyle(objects[0].typeCode);
       const objPts  = objects.map(o => projectPoint(o.raDeg, o.decDeg));
       const markerSize = options.scaleSizeByMag
         ? objects.map(o => magToSize(o.magnitudeVal))
         : style.size;
+      // Labels: only for label-worthy objects, and only when not suppressed by
+      // the overcrowding guard.
+      const labels = options.showObjectLabels
+        ? objects.map(o => o.labelWorthy ? o.label : '')
+        : objects.map(() => '');
 
       traces.push({
-        type: 'scatter',
+        type: 'scattergl',
         x: objPts.map(p => p.x),
         y: objPts.map(p => p.y),
         mode: 'markers+text',
         marker: {
           size: markerSize, color: style.color, symbol: style.symbol,
-          line: { width: 1, color: 'rgba(255,255,255,0.8)' },
+          line: { width: 0.6, color: 'rgba(255,255,255,0.7)' },
         },
         name: objType,
-        text: objects.map(o => o.messierNumber),
+        text: labels,
         textposition: 'top center',
         textfont: { size: 8, color: 'white', family: 'Arial, Helvetica, sans-serif' },
         hovertemplate:
-          '<b>%{text}</b><br>' +
-          'Name: %{customdata[0]}<br>' +
-          'Type: %{customdata[1]}<br>' +
-          'Constellation: %{customdata[2]}<br>' +
-          'Magnitude: %{customdata[3]}<br>' +
-          'Distance: %{customdata[4]} kly<br>' +
+          '<b>%{customdata[0]}</b><br>' +
+          'Type: %{customdata[2]}<br>' +
+          'Constellation: %{customdata[3]}<br>' +
+          'Magnitude: %{customdata[4]}<br>' +
           'Best Viewing: %{customdata[5]}<br>' +
           'RA: %{customdata[6]:.1f}°  Dec: %{customdata[7]:.1f}°<extra></extra>',
         customdata: objects.map(o => [
-          o.commonName, o.objectType, o.constellation,
-          o.magnitude, o.distance, o.bestViewing,
-          o.raDeg, o.decDeg, o.dimensions,
+          o.label, o.name, o.objectType, o.constellation,
+          o.magnitude, o.season, o.raDeg, o.decDeg,
+          o.dimensions, o.id, o.allIds.join(' · '), o.catalog,
         ]),
         legendgroup: category,
         legendgrouptitle: { text: category },
@@ -892,16 +884,33 @@ function renderVisibilityChart(canvas, raDeg, decDeg) {
 
 // ─── Detail panel ────────────────────────────────────────────────────────────
 
-async function fetchWikipediaData(messierNumber) {
-  try {
-    const resp = await fetch(
-      `https://en.wikipedia.org/api/rest_v1/page/summary/Messier_${messierNumber}`
-    );
-    if (!resp.ok) return null;
-    return await resp.json();
-  } catch {
-    return null;
+// Wikipedia summaries live under different titles for different objects, so try
+// the most specific designation first and fall back gracefully: Messier name →
+// common name → NGC/IC designation.
+function wikipediaTitles(obj) {
+  const titles = [];
+  if (obj.messier)  titles.push(`Messier_${obj.messier.replace(/^M/i, '')}`);
+  if (obj.name)     titles.push(obj.name.replace(/\s+/g, '_'));
+  if (obj.ngcIc)    titles.push(obj.ngcIc.replace(/\s+/g, '_'));
+  return [...new Set(titles)];
+}
+
+async function fetchWikipediaData(obj) {
+  for (const title of wikipediaTitles(obj)) {
+    try {
+      const resp = await fetch(
+        `https://en.wikipedia.org/api/rest_v1/page/summary/${encodeURIComponent(title)}`
+      );
+      if (!resp.ok) continue;
+      const data = await resp.json();
+      // Disambiguation pages carry no useful summary/image — keep looking.
+      if (data.type === 'disambiguation') continue;
+      return data;
+    } catch {
+      // network error — try the next title
+    }
   }
+  return null;
 }
 
 function closeDetailPanel() {
@@ -911,20 +920,26 @@ function closeDetailPanel() {
   document.getElementById('panel-backdrop').classList.remove('open');
 }
 
-function openDetailPanel(messierNum, commonName, objectType, constellation, magnitude, distance, bestViewing, dimensions) {
-  const num = messierNum.replace(/^M/i, '');
+// Accepts either an object id (string) or the object itself.
+function openDetailPanel(objOrId) {
+  const obj = (typeof objOrId === 'string')
+    ? allData.find(o => o.id === objOrId)
+    : objOrId;
+  if (!obj) return;
 
-  document.getElementById('panel-messier-num').textContent = messierNum;
-  document.getElementById('panel-title').textContent = (commonName && commonName !== '–') ? commonName : messierNum;
+  // Short designation shown as the badge; title prefers the common name.
+  const badge = obj.messier || obj.caldwell || obj.ngcIc || obj.id;
+  document.getElementById('panel-messier-num').textContent = badge;
+  document.getElementById('panel-title').textContent = obj.name || obj.label;
 
-  const season = bestViewing ? bestViewing.charAt(0).toUpperCase() + bestViewing.slice(1) : '—';
+  const otherIds = obj.allIds.filter(x => x !== obj.name);
   document.getElementById('panel-stats').innerHTML = [
-    ['Type',        objectType],
-    ['Constellation', constellation],
-    ['Magnitude',   magnitude],
-    ['Distance',    distance ? `${distance} kly` : '—'],
-    ['Size',        dimensions || '—'],
-    ['Best Viewing', season],
+    ['Type',         obj.objectType],
+    ['Constellation', obj.constellation],
+    ['Magnitude',    obj.magnitude],
+    ['Size',         obj.dimensions ? `${obj.dimensions}′` : '—'],
+    ['Best Viewing', obj.season || '—'],
+    ['Catalog IDs',  otherIds.length ? otherIds.join(' · ') : '—'],
   ].map(([label, val]) =>
     `<div class="stat-card"><div class="stat-label">${label}</div><div class="stat-value">${val || '—'}</div></div>`
   ).join('');
@@ -944,11 +959,10 @@ function openDetailPanel(messierNum, commonName, objectType, constellation, magn
   document.getElementById('panel-backdrop').classList.add('open');
 
   // Build visibility chart (waits for panel layout internally)
-  const objData = allData.find(o => o.messierNumber === messierNum);
-  if (objData) buildVisibilityChart(objData.raDeg, objData.decDeg);
+  buildVisibilityChart(obj.raDeg, obj.decDeg);
 
   // Fetch Wikipedia data asynchronously
-  fetchWikipediaData(num).then(data => {
+  fetchWikipediaData(obj).then(data => {
     if (!data) {
       phEl.textContent = 'No image available';
       document.getElementById('panel-description').textContent = 'Description unavailable.';
@@ -988,15 +1002,31 @@ function magToSize(mag) {
 
 // ─── State & filter management ────────────────────────────────────────────────
 
+// Default magnitude cap on load so the ~13k-object catalog isn't flooded; the
+// user can widen it up to MAG_SLIDER_MAX.
+const DEFAULT_MAG_MAX = 9;
+const MAG_SLIDER_MAX  = 16;
+// Above this many objects on screen the field is too dense to label legibly, so
+// suppress the on-chart labels and show the "zoom in / tighten filters" hint.
+// (Only Messier/Caldwell/named/bright objects are ever labelled to begin with.)
+const OVERCROWD_LIMIT = 1500;
+// Cap how many objects the Night Planner charts draw. With the full catalog a
+// wide filter can leave hundreds of targets up at once — far too many rows/lines
+// to read, and slow to render — so keep the best (highest-transiting) N.
+const MAX_PLANNER_OBJECTS = 60;
+const CATALOG_ORDER = ['Messier', 'Caldwell', 'NGC', 'IC', 'Other'];
+
 let allData          = [];
 let allTypes         = [];
 let allConstellations = [];
 let allSeasons       = [];
+let allCatalogs      = [];
 let selectedTypes         = new Set();
 let selectedConstellations = new Set();
 let selectedSeasons       = new Set();
+let selectedCatalogs      = new Set();
 let magMin = 0;
-let magMax = 12;
+let magMax = DEFAULT_MAG_MAX;
 let scaleSizeByMag  = false;
 let currentTab    = 'skychart';
 let plannerDate   = '';
@@ -1016,13 +1046,17 @@ function observerLat() { return userLatitude  !== null ? userLatitude  : DEFAULT
 function observerLon() { return userLongitude !== null ? userLongitude : DEFAULT_LON; }
 
 function getFilteredData() {
-  return allData.filter(obj =>
-    selectedTypes.has(obj.objectType) &&
-    selectedConstellations.has(obj.constellation) &&
-    selectedSeasons.has(obj.bestViewing) &&
-    obj.magnitudeVal >= magMin &&
-    obj.magnitudeVal <= magMax
-  );
+  return allData.filter(obj => {
+    if (!selectedCatalogs.has(obj.catalog)) return false;
+    if (!selectedTypes.has(obj.objectType)) return false;
+    if (!selectedConstellations.has(obj.constellation)) return false;
+    if (!selectedSeasons.has(obj.season)) return false;
+    // Messier & Caldwell objects always pass the magnitude filter so the
+    // familiar catalog is never hidden (many have no magnitude at all).
+    if (obj.catalog === 'Messier' || obj.catalog === 'Caldwell') return true;
+    // Objects without a magnitude are treated as faint (hidden by default).
+    return obj.magnitudeVal >= magMin && obj.magnitudeVal <= magMax;
+  });
 }
 
 function updateLocationTimeDisplay() {
@@ -1042,21 +1076,30 @@ function updateChart() {
   const now = new Date();
   const lst = (tonightsMode && userLatitude !== null)
     ? getLSTDeg(now, userLongitude) : null;
+
+  // Overcrowding guard: when the field is too dense, drop the on-chart labels
+  // (markers still render) and nudge the user to zoom in / tighten filters.
+  const showObjectLabels = filtered.length <= OVERCROWD_LIMIT;
+
   const options = {
     showStarLabels:          document.getElementById('show-star-labels').checked,
     showConstellationLines:  document.getElementById('show-constellation-lines').checked,
     showConstellationLabels: document.getElementById('show-constellation-names').checked,
+    showObjectLabels,
     scaleSizeByMag,
     lst,
     lat: userLatitude,
   };
   updateLocationTimeDisplay();
   Plotly.react('sky-chart', buildTraces(filtered, options), getLayout(), PLOTLY_CONFIG);
-  document.getElementById('object-count').textContent =
-    `Showing ${filtered.length} of ${allData.length} objects · click any object for details`;
+  document.getElementById('object-count').textContent = showObjectLabels
+    ? `Showing ${filtered.length} of ${allData.length} objects · click any object for details`
+    : `Showing ${filtered.length} of ${allData.length} objects · labels hidden — zoom in or tighten filters to see them`;
+  document.getElementById('catalog-badge').textContent = `${selectedCatalogs.size} selected`;
   document.getElementById('type-badge').textContent   = `${selectedTypes.size} selected`;
   document.getElementById('const-badge').textContent  = `${selectedConstellations.size} selected`;
   document.getElementById('season-badge').textContent = `${selectedSeasons.size} selected`;
+  syncCheckboxes('catalog-checkboxes', selectedCatalogs);
   syncCheckboxes('type-checkboxes',   selectedTypes);
   syncCheckboxes('const-checkboxes',  selectedConstellations);
   syncCheckboxes('season-checkboxes', selectedSeasons);
@@ -1065,8 +1108,23 @@ function updateChart() {
 
 function syncCheckboxes(containerId, selectedSet) {
   document.querySelectorAll(`#${containerId} input[type=checkbox]`).forEach(cb => {
+    if (cb.dataset.master) return;  // category master toggles handled below
     cb.checked = selectedSet.has(cb.value);
   });
+  // Refresh category master toggles (checked / indeterminate) from their members.
+  document.querySelectorAll(`#${containerId} input[data-master]`).forEach(master => {
+    const cat = master.dataset.master;
+    const types = [...container_type_values(containerId)].filter(t => categoryOfLabel(t) === cat);
+    const selCount = types.filter(t => selectedSet.has(t)).length;
+    master.checked       = types.length > 0 && selCount === types.length;
+    master.indeterminate = selCount > 0 && selCount < types.length;
+  });
+}
+
+// All per-type checkbox values currently rendered in a container.
+function container_type_values(containerId) {
+  return [...document.querySelectorAll(`#${containerId} input[type=checkbox]:not([data-master])`)]
+    .map(cb => cb.value);
 }
 
 function buildCheckboxes(containerId, options, selectedSet) {
@@ -1077,7 +1135,7 @@ function buildCheckboxes(containerId, options, selectedSet) {
   let grouped = null;
   if (isTypeList) {
     grouped = { Galaxy: [], Nebula: [], Cluster: [], Other: [] };
-    for (const opt of options) grouped[classifyObjectType(opt)].push(opt);
+    for (const opt of options) grouped[categoryOfLabel(opt)].push(opt);
   }
 
   function addCheckbox(opt) {
@@ -1103,13 +1161,40 @@ function buildCheckboxes(containerId, options, selectedSet) {
     container.appendChild(div);
   }
 
+  // Category master toggle: one checkbox in the header that turns every type in
+  // that category on/off at once (issue #7 — functional Type filter).
+  function addCategoryHeader(cat, types) {
+    const header = document.createElement('div');
+    header.className = 'form-check';
+    header.style.cssText = 'margin-top:8px;margin-bottom:2px;';
+    const input = document.createElement('input');
+    input.type      = 'checkbox';
+    input.className = 'form-check-input';
+    input.id        = `cb-cat-${cat}`;
+    input.dataset.master = cat;
+    const selCount  = types.filter(t => selectedSet.has(t)).length;
+    input.checked       = selCount === types.length;
+    input.indeterminate = selCount > 0 && selCount < types.length;
+    input.addEventListener('change', () => {
+      if (input.checked) types.forEach(t => selectedSet.add(t));
+      else               types.forEach(t => selectedSet.delete(t));
+      buildCheckboxes(containerId, options, selectedSet);
+      updateChart();
+    });
+    const label = document.createElement('label');
+    label.className   = 'form-check-label';
+    label.htmlFor     = input.id;
+    label.style.cssText = 'color:#87ceeb;font-size:0.78rem;font-weight:bold;';
+    label.textContent = cat;
+    header.appendChild(input);
+    header.appendChild(label);
+    container.appendChild(header);
+  }
+
   if (isTypeList && grouped) {
     for (const cat of ['Galaxy', 'Nebula', 'Cluster', 'Other']) {
       if (!grouped[cat].length) continue;
-      const header = document.createElement('div');
-      header.style.cssText = 'color:#87ceeb;font-size:0.75rem;font-weight:bold;margin-top:6px;margin-bottom:2px;';
-      header.textContent = cat;
-      container.appendChild(header);
+      addCategoryHeader(cat, grouped[cat]);
       grouped[cat].sort().forEach(addCheckbox);
     }
   } else {
@@ -1134,6 +1219,7 @@ function setupSelectAll(btnId, deselBtnId, allValues, selectedSet, containerId) 
 
 function setupCollapseIcons() {
   for (const [collapseId, iconId] of [
+    ['catalog-collapse', 'catalog-icon'],
     ['type-collapse',   'type-icon'],
     ['const-collapse',  'const-icon'],
     ['season-collapse', 'season-icon'],
@@ -1145,12 +1231,12 @@ function setupCollapseIcons() {
   }
 
   document.getElementById('expand-all').addEventListener('click', () => {
-    ['type-collapse', 'const-collapse', 'season-collapse', 'mag-collapse'].forEach(id =>
+    ['catalog-collapse', 'type-collapse', 'const-collapse', 'season-collapse', 'mag-collapse'].forEach(id =>
       bootstrap.Collapse.getOrCreateInstance(document.getElementById(id)).show()
     );
   });
   document.getElementById('collapse-all').addEventListener('click', () => {
-    ['type-collapse', 'const-collapse', 'season-collapse', 'mag-collapse'].forEach(id =>
+    ['catalog-collapse', 'type-collapse', 'const-collapse', 'season-collapse', 'mag-collapse'].forEach(id =>
       bootstrap.Collapse.getOrCreateInstance(document.getElementById(id)).hide()
     );
   });
@@ -1158,23 +1244,45 @@ function setupCollapseIcons() {
 
 // ─── CSV parsing ──────────────────────────────────────────────────────────────
 
+// Objects at or brighter than this magnitude get an on-chart text label even
+// without a Messier/Caldwell/common name.
+const LABEL_MAG_BRIGHT = 7;
+
 function parseCSV(csvText) {
   const results = Papa.parse(csvText, { header: true, skipEmptyLines: true });
-  return results.data.map(row => ({
-    number:        parseInt(row['Number'], 10),
-    messierNumber: (row['Messier number']     || '').trim(),
-    ngcNumber:     (row['NGC/IC number']      || '').trim(),
-    commonName:    (row['Common name']        || '–').trim(),
-    objectType:    (row['Object type']        || 'Unknown').trim(),
-    distance:      (row['Distance (kly)']     || '?').trim(),
-    constellation: (row['Constellation']      || 'Unknown').trim(),
-    magnitude:     (row['Apparent magnitude'] || '?').toString().trim(),
-    magnitudeVal:  parseFloat(row['Apparent magnitude']) || 0,
-    dimensions:    (row['Apparent dimensions (arc minutes)'] || '').trim(),
-    bestViewing:   (row['Best Viewing']       || 'unknown').trim().toLowerCase(),
-    raDeg:  raToDegrees(row['Right ascension']),
-    decDeg: decToDegrees(row['Declination']),
-  }));
+  return results.data.filter(row => row['id']).map(row => {
+    const messier  = (row['messier']  || '').trim();
+    const caldwell = (row['caldwell'] || '').trim();
+    const name     = (row['name']     || '').trim();
+    const ngcIc    = (row['ngc_ic']   || '').trim();
+    const code     = (row['type']     || 'Other').trim();
+    const magStr   = (row['mag']      || '').trim();
+    const magVal   = magStr === '' ? Infinity : parseFloat(magStr);
+    const season   = (row['season']   || 'Unknown').trim();
+    // Name precedence: Messier > Caldwell > common name > NGC/IC designation
+    const label = messier || caldwell || name || ngcIc;
+    const labelWorthy = !!(messier || caldwell || name ||
+      (Number.isFinite(magVal) && magVal <= LABEL_MAG_BRIGHT));
+    return {
+      id:            (row['id'] || '').trim(),
+      catalog:       (row['catalog'] || 'Other').trim(),
+      messier, caldwell, name, ngcIc, label, labelWorthy,
+      allIds:        (row['all_ids'] || ngcIc).split(',').map(s => s.trim()).filter(Boolean),
+      typeCode:      code,
+      objectType:    typeLabel(code),
+      category:      classifyObjectType(code),
+      magnitude:     magStr === '' ? '—' : magStr,
+      magnitudeVal:  magVal,
+      hasMag:        Number.isFinite(magVal),
+      distance:      '',
+      constellation: (row['constellation'] || 'Unknown').trim(),
+      dimensions:    (row['size_arcmin'] || '').trim(),
+      bestViewing:   season,
+      season,
+      raDeg:  parseFloat(row['ra_deg'])  || 0,
+      decDeg: parseFloat(row['dec_deg']) || 0,
+    };
+  });
 }
 
 // ─── Init ─────────────────────────────────────────────────────────────────────
@@ -1190,6 +1298,13 @@ async function init() {
   const magMaxEl    = document.getElementById('mag-max');
   const magMinLabel = document.getElementById('mag-min-label');
   const magMaxLabel = document.getElementById('mag-max-label');
+
+  // The NGC+IC catalog reaches ~mag 16; start capped at DEFAULT_MAG_MAX.
+  magMinEl.max = magMaxEl.max = MAG_SLIDER_MAX;
+  magMinEl.value = magMin;
+  magMaxEl.value = magMax;
+  magMinLabel.textContent = magMin.toFixed(1);
+  magMaxLabel.textContent = magMax.toFixed(1);
 
   magMinEl.addEventListener('input', () => {
     magMin = parseFloat(magMinEl.value);
@@ -1296,29 +1411,34 @@ async function init() {
   // Load CSV
   let csvText;
   try {
-    const resp = await fetch('Messier_data.csv');
+    const resp = await fetch('catalog.csv');
     if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
     csvText = await resp.text();
   } catch (err) {
     document.getElementById('object-count').textContent = `Error loading catalog: ${err.message}`;
-    document.getElementById('loading-msg').textContent  = `Failed to load Messier_data.csv`;
+    document.getElementById('loading-msg').textContent  = `Failed to load catalog.csv`;
     return;
   }
 
   allData = parseCSV(csvText);
 
+  allCatalogs       = CATALOG_ORDER.filter(c => allData.some(o => o.catalog === c));
   allTypes          = [...new Set(allData.map(o => o.objectType))].sort();
   allConstellations = [...new Set(allData.map(o => o.constellation))].sort();
-  allSeasons        = [...new Set(allData.map(o => o.bestViewing))].sort();
+  const SEASON_ORDER = ['Winter', 'Spring', 'Summer', 'Autumn', 'Unknown'];
+  allSeasons        = SEASON_ORDER.filter(s => allData.some(o => o.season === s));
 
+  allCatalogs.forEach(c => selectedCatalogs.add(c));
   allTypes.forEach(t => selectedTypes.add(t));
   allConstellations.forEach(c => selectedConstellations.add(c));
   allSeasons.forEach(s => selectedSeasons.add(s));
 
+  buildCheckboxes('catalog-checkboxes', allCatalogs,       selectedCatalogs);
   buildCheckboxes('type-checkboxes',   allTypes,          selectedTypes);
   buildCheckboxes('const-checkboxes',  allConstellations, selectedConstellations);
   buildCheckboxes('season-checkboxes', allSeasons,        selectedSeasons);
 
+  setupSelectAll('select-all-catalog', 'deselect-all-catalog', allCatalogs,       selectedCatalogs,      'catalog-checkboxes');
   setupSelectAll('select-all-types',   'deselect-all-types',   allTypes,          selectedTypes,         'type-checkboxes');
   setupSelectAll('select-all-const',   'deselect-all-const',   allConstellations, selectedConstellations, 'const-checkboxes');
   setupSelectAll('select-all-seasons', 'deselect-all-seasons', allSeasons,        selectedSeasons,        'season-checkboxes');
@@ -1331,13 +1451,12 @@ async function init() {
   document.getElementById('close-panel').addEventListener('click', closeDetailPanel);
   document.getElementById('panel-backdrop').addEventListener('click', closeDetailPanel);
 
-  // Plotly click → open detail panel for Messier objects
-  // customdata length 9 = Messier object; length 5 = bright star
+  // Plotly click → open detail panel. Object traces carry the object id at
+  // customdata[9]; bright stars (length 5) and label/line traces don't.
   document.getElementById('sky-chart').on('plotly_click', data => {
     const pt = data.points[0];
-    if (!pt.customdata || pt.customdata.length < 9) return;
-    const [commonName, objectType, constellation, magnitude, distance, bestViewing, , , dimensions] = pt.customdata;
-    openDetailPanel(pt.text, commonName, objectType, constellation, magnitude, distance, bestViewing, dimensions);
+    if (!pt.customdata || pt.customdata.length < 10) return;
+    openDetailPanel(pt.customdata[9]);
   });
 
   // Detect the observer's location on load so the visibility chart reflects
@@ -1369,6 +1488,14 @@ function formatHour(h) {
   const hh = Math.floor(h) % 24;
   const mm = Math.round((h % 1) * 60);
   return `${hh.toString().padStart(2, '0')}:${mm.toString().padStart(2, '0')}`;
+}
+
+// Display name for planner rows/legend: primary designation, plus the common
+// name when it isn't already the primary label.
+function plannerLabel(obj) {
+  return (obj.name && obj.name !== obj.label)
+    ? `${obj.label} · ${obj.name}`
+    : obj.label;
 }
 
 function buildPlannerChart(filteredData) {
@@ -1420,9 +1547,10 @@ function buildPlannerChart(filteredData) {
     return { obj, peakAlt, peakX, windows };
   });
 
-  const visible = profiles
+  const allVisible = profiles
     .filter(p => p.windows.length > 0 && p.peakAlt >= plannerMinAlt)
     .sort((a, b) => b.peakAlt - a.peakAlt);
+  const visible = allVisible.slice(0, MAX_PLANNER_OBJECTS);
 
   // Night boundaries: sun < 0° (horizon) and sun < -6° (civil twilight)
   let nightX0 = 20, nightX1 = 28, civX0 = 19.5, civX1 = 28.5;
@@ -1431,8 +1559,10 @@ function buildPlannerChart(filteredData) {
   for (let i = 0;                i < steps.length; i++) { if (sunAlts[i] < -6) { civX0   = steps[i].x; break; } }
   for (let i = steps.length - 1; i >= 0;           i--) { if (sunAlts[i] < -6) { civX1   = steps[i].x; break; } }
 
-  document.getElementById('object-count').textContent = visible.length
-    ? `${visible.length} objects visible tonight · ${filteredData.length - visible.length} below ${plannerMinAlt}° threshold`
+  document.getElementById('object-count').textContent = allVisible.length
+    ? (allVisible.length > visible.length
+        ? `${allVisible.length} objects visible tonight · showing the ${visible.length} highest-transiting · tighten filters to narrow`
+        : `${allVisible.length} objects visible tonight · ${filteredData.length - allVisible.length} below ${plannerMinAlt}° threshold`)
     : `No objects above ${plannerMinAlt}° for the selected night`;
 
   if (!visible.length) {
@@ -1444,10 +1574,7 @@ function buildPlannerChart(filteredData) {
     return;
   }
 
-  const yLabels = visible.map(p => {
-    const cn = p.obj.commonName && p.obj.commonName !== '–' ? ` · ${p.obj.commonName}` : '';
-    return `${p.obj.messierNumber}${cn}`;
-  });
+  const yLabels = visible.map(p => plannerLabel(p.obj));
 
   const traces = [];
   for (let i = 0; i < visible.length; i++) {
@@ -1461,9 +1588,9 @@ function buildPlannerChart(filteredData) {
         y: [yLabels[i]],
         marker: { color: altToColor(peakAlt) },
         showlegend: false,
-        customdata: [obj.messierNumber],
+        customdata: [obj.id],
         hovertemplate:
-          `<b>${obj.messierNumber}</b>${obj.commonName && obj.commonName !== '–' ? ' — ' + obj.commonName : ''}<br>` +
+          `<b>${plannerLabel(obj)}</b><br>` +
           `${formatHour(win.x0)} – ${formatHour(win.x1)}<br>` +
           `Peak: ${peakAlt.toFixed(0)}°  ·  ${obj.objectType}<br>` +
           `<i>click for details</i><extra></extra>`,
@@ -1528,10 +1655,7 @@ function buildPlannerChart(filteredData) {
   chartEl.on('plotly_click', data => {
     const pt = data.points[0];
     if (!pt.customdata) return;
-    const messierNum = Array.isArray(pt.customdata) ? pt.customdata[0] : pt.customdata;
-    const obj = allData.find(o => o.messierNumber === messierNum);
-    if (!obj) return;
-    openDetailPanel(obj.messierNumber, obj.commonName, obj.objectType, obj.constellation, obj.magnitude, obj.distance, obj.bestViewing, obj.dimensions);
+    openDetailPanel(Array.isArray(pt.customdata) ? pt.customdata[0] : pt.customdata);
   });
 }
 
@@ -1567,16 +1691,24 @@ function buildAltitudeChart(filteredData) {
     tickVals.push(h); tickText.push(formatHour(h));
   }
 
-  // One trace per object, only those that reach plannerMinAlt during the night
-  const visible = filteredData.filter(obj => {
-    for (let i = 0; i < steps.length; i++) {
-      if (sunAlts[i] < 0) {
-        const alt = getAltitudeDeg(obj.raDeg, obj.decDeg, getLSTDeg(steps[i].date, userLongitude), userLatitude);
-        if (alt >= plannerMinAlt) return true;
+  // One trace per object, only those that reach plannerMinAlt during the night.
+  // Rank by peak night-time altitude and keep the best N (too many lines are
+  // unreadable and slow to render with the full catalog).
+  const visible = filteredData
+    .map(obj => {
+      let peakAlt = -90;
+      for (let i = 0; i < steps.length; i++) {
+        if (sunAlts[i] < 0) {
+          const alt = getAltitudeDeg(obj.raDeg, obj.decDeg, getLSTDeg(steps[i].date, userLongitude), userLatitude);
+          if (alt > peakAlt) peakAlt = alt;
+        }
       }
-    }
-    return false;
-  });
+      return { obj, peakAlt };
+    })
+    .filter(p => p.peakAlt >= plannerMinAlt)
+    .sort((a, b) => b.peakAlt - a.peakAlt)
+    .slice(0, MAX_PLANNER_OBJECTS)
+    .map(p => p.obj);
 
   const traces = [];
   for (let i = 0; i < visible.length; i++) {
@@ -1584,33 +1716,29 @@ function buildAltitudeChart(filteredData) {
     const alts = steps.map(s =>
       getAltitudeDeg(obj.raDeg, obj.decDeg, getLSTDeg(s.date, userLongitude), userLatitude)
     );
-    const cn = obj.commonName && obj.commonName !== '–' ? ` · ${obj.commonName}` : '';
-    const season = obj.bestViewing ? obj.bestViewing.charAt(0).toUpperCase() + obj.bestViewing.slice(1) : '—';
     traces.push({
       type: 'scatter', mode: 'lines',
       x: steps.map(s => s.x), y: alts,
-      name: `${obj.messierNumber}${cn}`,
+      name: plannerLabel(obj),
       line: {
         color: ALT_PALETTE[i % ALT_PALETTE.length],
         width: 2,
         dash: ALT_DASHES[Math.floor(i / ALT_PALETTE.length) % ALT_DASHES.length],
       },
       hovertemplate:
-        `<b>${obj.messierNumber}${obj.commonName && obj.commonName !== '–' ? ' — ' + obj.commonName : ''}</b><br>` +
+        `<b>${plannerLabel(obj)}</b><br>` +
         `%{customdata[0]} · %{y:.0f}°<br>` +
         `Type: %{customdata[1]}<br>` +
         `Constellation: %{customdata[2]}<br>` +
         `Magnitude: %{customdata[3]}<br>` +
-        `Distance: %{customdata[4]} kly<br>` +
-        `Best Viewing: %{customdata[5]}<extra></extra>`,
+        `Best Viewing: %{customdata[4]}<extra></extra>`,
       customdata: steps.map(s => [
         formatHour(s.x),
         obj.objectType,
         obj.constellation,
         obj.magnitude,
-        obj.distance,
-        season,
-        obj.messierNumber,
+        obj.season,
+        obj.id,
       ]),
     });
   }
@@ -1655,11 +1783,8 @@ function buildAltitudeChart(filteredData) {
   altEl.removeAllListeners?.('plotly_click');
   altEl.on('plotly_click', data => {
     const pt = data.points[0];
-    if (!pt.customdata || !pt.customdata[6]) return;
-    const messierNum = pt.customdata[6];
-    const obj = allData.find(o => o.messierNumber === messierNum);
-    if (!obj) return;
-    openDetailPanel(obj.messierNumber, obj.commonName, obj.objectType, obj.constellation, obj.magnitude, obj.distance, obj.bestViewing, obj.dimensions);
+    if (!pt.customdata || !pt.customdata[5]) return;
+    openDetailPanel(pt.customdata[5]);
   });
 }
 
