@@ -173,6 +173,22 @@
       font-size: 0.82rem;
       color-scheme: dark;
     }
+
+    /* ── Object search ── */
+    .search-item {
+      padding: 6px 10px;
+      cursor: pointer;
+      font-size: 0.82rem;
+      color: #dbe6f5;
+      border-bottom: 1px solid #1c2b47;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .search-item:last-child { border-bottom: none; }
+    .search-item .desig { color: #9fd0ff; font-weight: 600; }
+    .search-item .sub   { color: #8195b3; }
+    .search-item:hover, .search-item.active { background: #1d3050; }
   </style>
 </head>
 <body>
@@ -205,6 +221,27 @@
               <button class="btn btn-outline-secondary btn-sm" id="detect-location" style="font-size:0.78rem;" title="Request location from browser">📍 Detect</button>
             </div>
           </div>
+        </div>
+
+        <!-- Object search (works on every tab; isolates the chosen object) -->
+        <div class="mb-3 d-flex align-items-center" style="gap:10px; flex-wrap:wrap;">
+          <div style="position:relative; flex:1; min-width:240px; max-width:460px;">
+            <input type="text" id="object-search" class="form-control form-control-sm" autocomplete="off"
+                   placeholder="🔍  Find an object — M57, NGC 6720, Ring Nebula…"
+                   style="background:#1a2540; border-color:#2a3a60; color:white; font-size:0.85rem;">
+            <div id="search-results"
+                 style="position:absolute; top:100%; left:0; right:0; z-index:1200; background:#111c33;
+                        border:1px solid #2a3a60; border-top:none; border-radius:0 0 6px 6px;
+                        max-height:300px; overflow-y:auto; display:none;"></div>
+          </div>
+          <span id="search-chip"
+                style="display:none; align-items:center; gap:4px; background:#1d3a5f; border:1px solid #2f5580;
+                       border-radius:14px; padding:3px 4px 3px 12px; font-size:0.8rem; color:#cfe4ff; white-space:nowrap;">
+            <span style="color:#8fb6e0;">Isolating:</span>
+            <span id="search-chip-label" style="font-weight:600;"></span>
+            <button id="search-clear" title="Clear search"
+                    style="background:none; border:none; color:#9fc4ef; font-size:1rem; line-height:1; cursor:pointer; padding:0 4px;">✕</button>
+          </span>
         </div>
 
         <!-- Sky Chart control bar -->
@@ -499,7 +536,7 @@
   <script src="https://cdn.plot.ly/plotly-2.27.0.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
-  <script src="app.js?v=20260711f"></script>
+  <script src="app.js?v=20260712a"></script>
   <script data-goatcounter="https://messier-explorer.goatcounter.com/count"
           async src="//gc.zgo.at/count.js"></script>
 </body>

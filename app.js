@@ -1046,6 +1046,8 @@ let selectedCatalogs      = new Set();
 let magMin = 0;
 let magMax = DEFAULT_MAG_MAX;
 let sizeMin = DEFAULT_SIZE_MIN;   // minimum apparent size in arcminutes
+let searchSelection = null;       // object id to isolate across all views, or null
+let searchIndex     = [];         // built from allData for the search typeahead
 let scaleSizeByMag  = false;
 let currentTab    = 'skychart';
 let plannerDate   = '';
@@ -1065,6 +1067,12 @@ function observerLat() { return userLatitude  !== null ? userLatitude  : DEFAULT
 function observerLon() { return userLongitude !== null ? userLongitude : DEFAULT_LON; }
 
 function getFilteredData() {
+  // Search isolation overrides every other filter so any object is always
+  // findable — the filter chips stay set underneath and return on clear.
+  if (searchSelection) {
+    const o = allData.find(x => x.id === searchSelection);
+    return o ? [o] : [];
+  }
   return allData.filter(obj => {
     if (!selectedCatalogs.has(obj.catalog)) return false;
     if (!selectedTypes.has(obj.objectType)) return false;
@@ -1115,9 +1123,13 @@ function updateChart() {
   };
   updateLocationTimeDisplay();
   Plotly.react('sky-chart', buildTraces(filtered, options), getLayout(), PLOTLY_CONFIG);
-  document.getElementById('object-count').textContent = showObjectLabels
-    ? `Showing ${filtered.length} of ${allData.length} objects · click any object for details`
-    : `Showing ${filtered.length} of ${allData.length} objects · labels hidden — zoom in or tighten filters to see them`;
+  // When isolating a searched object, zoom the sky chart in around it.
+  if (searchSelection && filtered.length === 1) centerSkyChartOn(filtered[0]);
+  document.getElementById('object-count').textContent = searchSelection
+    ? `Isolating 1 object · clear the search to return to your filters`
+    : (showObjectLabels
+        ? `Showing ${filtered.length} of ${allData.length} objects · click any object for details`
+        : `Showing ${filtered.length} of ${allData.length} objects · labels hidden — zoom in or tighten filters to see them`);
   document.getElementById('catalog-badge').textContent = `${selectedCatalogs.size} selected`;
   document.getElementById('type-badge').textContent   = `${selectedTypes.size} selected`;
   document.getElementById('const-badge').textContent  = `${selectedConstellations.size} selected`;
@@ -1263,6 +1275,143 @@ function setupCollapseIcons() {
       bootstrap.Collapse.getOrCreateInstance(document.getElementById(id)).hide()
     );
   });
+}
+
+// ─── Object search ────────────────────────────────────────────────────────────
+
+const _norm      = s => s.toLowerCase().trim();
+const _spaceless = s => s.replace(/\s+/g, '');
+
+// Rank catalogs so the classics win ties in the typeahead.
+const SEARCH_PRIORITY = { Messier: 0, Caldwell: 1, NGC: 3, IC: 4, Other: 5 };
+
+function buildSearchIndex() {
+  searchIndex = allData.map(obj => {
+    const tokens = new Set();
+    for (const t of [obj.messier, obj.caldwell, obj.ngcIc, obj.id, obj.name, ...obj.allIds]) {
+      if (!t) continue;
+      const n = _norm(t);
+      tokens.add(n);
+      if (_spaceless(n) !== n) tokens.add(_spaceless(n));
+    }
+    const desig = obj.messier || obj.caldwell || obj.ngcIc || obj.id;
+    return {
+      obj, desig,
+      tokens:    [...tokens],
+      searchStr: [...tokens].join('|'),
+      // named objects float above bare NGC/IC entries
+      priority:  obj.name ? Math.min(SEARCH_PRIORITY[obj.catalog] ?? 5, 2) : (SEARCH_PRIORITY[obj.catalog] ?? 5),
+      magSort:   Number.isFinite(obj.magnitudeVal) ? obj.magnitudeVal : 99,
+    };
+  });
+}
+
+function searchMatches(query, limit = 8) {
+  const q = _norm(query);
+  if (!q) return [];
+  const qns = _spaceless(q);
+  const hits = [];
+  for (const e of searchIndex) {
+    let rank = 3;
+    for (const t of e.tokens) {
+      if (t === q || t === qns) { rank = 0; break; }
+      if (t.startsWith(q) || t.startsWith(qns)) rank = Math.min(rank, 1);
+    }
+    if (rank === 3 && (e.searchStr.includes(q) || e.searchStr.includes(qns))) rank = 2;
+    if (rank < 3) hits.push({ e, rank });
+  }
+  hits.sort((a, b) => a.rank - b.rank || a.e.priority - b.e.priority || a.e.magSort - b.e.magSort);
+  return hits.slice(0, limit).map(h => h.e);
+}
+
+// Zoom the sky chart to a window centred on the given object, preserving each
+// axis's direction (RA runs high→low) so orientation is unchanged.
+function centerSkyChartOn(obj) {
+  try {
+    const layout = getLayout();
+    const p = projectPoint(obj.raDeg, obj.decDeg);
+    const frac = 0.22;   // window ≈ 22% of the full extent
+    const sub = ([a, b], c) => {
+      const h = Math.abs(b - a) * frac / 2;
+      return a > b ? [c + h, c - h] : [c - h, c + h];
+    };
+    Plotly.relayout('sky-chart', {
+      'xaxis.range': sub(layout.xaxis.range, p.x),
+      'yaxis.range': sub(layout.yaxis.range, p.y),
+    });
+  } catch { /* projection without numeric ranges — leave the full view */ }
+}
+
+function isolateObject(id) {
+  searchSelection = id;
+  const obj = allData.find(o => o.id === id);
+  const desig = obj ? (obj.messier || obj.caldwell || obj.ngcIc || obj.id) : id;
+  const chipLabel = obj && obj.name && obj.name !== desig ? `${desig} · ${obj.name}` : desig;
+  document.getElementById('search-chip-label').textContent = chipLabel;
+  document.getElementById('search-chip').style.display = 'inline-flex';
+  document.getElementById('object-search').value = '';
+  hideSearchResults();
+  updateChart();          // rebuilds sky chart + planner via updatePlanner()
+  if (obj) openDetailPanel(obj);
+}
+
+function clearSearch() {
+  searchSelection = null;
+  document.getElementById('search-chip').style.display = 'none';
+  document.getElementById('object-search').value = '';
+  hideSearchResults();
+  updateChart();
+}
+
+function hideSearchResults() {
+  const el = document.getElementById('search-results');
+  el.style.display = 'none';
+  el.innerHTML = '';
+}
+
+function setupSearch() {
+  const input   = document.getElementById('object-search');
+  const results = document.getElementById('search-results');
+  let matches = [];
+  let active  = -1;
+
+  function render() {
+    if (!matches.length) { hideSearchResults(); return; }
+    results.innerHTML = matches.map((e, i) => {
+      const sub = [e.obj.name && e.obj.name !== e.desig ? e.obj.name : null, e.obj.objectType]
+        .filter(Boolean).join(' · ');
+      return `<div class="search-item${i === active ? ' active' : ''}" data-idx="${i}">` +
+        `<span class="desig">${e.desig}</span>` + (sub ? ` <span class="sub">· ${sub}</span>` : '') +
+        `</div>`;
+    }).join('');
+    results.style.display = 'block';
+  }
+
+  input.addEventListener('input', () => {
+    matches = searchMatches(input.value);
+    active  = matches.length ? 0 : -1;
+    render();
+  });
+
+  input.addEventListener('keydown', e => {
+    if (e.key === 'ArrowDown')      { e.preventDefault(); if (matches.length) { active = (active + 1) % matches.length; render(); } }
+    else if (e.key === 'ArrowUp')   { e.preventDefault(); if (matches.length) { active = (active - 1 + matches.length) % matches.length; render(); } }
+    else if (e.key === 'Enter')     { if (active >= 0 && matches[active]) isolateObject(matches[active].obj.id); }
+    else if (e.key === 'Escape')    { hideSearchResults(); input.blur(); }
+  });
+
+  results.addEventListener('mousedown', e => {
+    // mousedown (not click) so it fires before the input's blur
+    const item = e.target.closest('.search-item');
+    if (item) isolateObject(matches[parseInt(item.dataset.idx, 10)].obj.id);
+  });
+
+  input.addEventListener('focus', () => { if (input.value) { matches = searchMatches(input.value); render(); } });
+  document.addEventListener('click', e => {
+    if (!e.target.closest('#object-search') && !e.target.closest('#search-results')) hideSearchResults();
+  });
+
+  document.getElementById('search-clear').addEventListener('click', clearSearch);
 }
 
 // ─── CSV parsing ──────────────────────────────────────────────────────────────
@@ -1450,6 +1599,8 @@ async function init() {
   }
 
   allData = parseCSV(csvText);
+  buildSearchIndex();
+  setupSearch();
 
   allCatalogs       = CATALOG_ORDER.filter(c => allData.some(o => o.catalog === c));
   allTypes          = [...new Set(allData.map(o => o.objectType))].sort();
