@@ -1893,12 +1893,16 @@ function buildAltitudeChart(filteredData) {
   const traces = [];
   for (let i = 0; i < visible.length; i++) {
     const obj = visible[i];
-    const alts = steps.map(s =>
-      getAltitudeDeg(obj.raDeg, obj.decDeg, getLSTDeg(s.date, userLongitude), userLatitude)
-    );
+    // Clip each curve to the min-altitude window: only the portion above the
+    // threshold is drawn (nulls break the line), so the slider visibly trims the
+    // curves — consistent with the Timeline bars.
+    const alts = steps.map(s => {
+      const a = getAltitudeDeg(obj.raDeg, obj.decDeg, getLSTDeg(s.date, userLongitude), userLatitude);
+      return a >= plannerMinAlt ? a : null;
+    });
     traces.push({
       type: 'scatter', mode: 'lines',
-      x: steps.map(s => s.x), y: alts,
+      x: steps.map(s => s.x), y: alts, connectgaps: false,
       name: plannerLabel(obj),
       line: {
         color: ALT_PALETTE[i % ALT_PALETTE.length],
@@ -2014,13 +2018,25 @@ function buildSkyPathChart(filteredData) {
     : `No objects above ${plannerMinAlt}° for the selected night`;
 
   const traces = [];
+  // Dotted ring marking the min-altitude cutoff the paths are clipped to.
+  if (plannerMinAlt > 0) {
+    traces.push({
+      type: 'scatterpolar',
+      r: Array.from({ length: 73 }, () => 90 - plannerMinAlt),
+      theta: Array.from({ length: 73 }, (_, k) => k * 5),
+      mode: 'lines',
+      line: { color: 'rgba(255,255,100,0.3)', width: 1, dash: 'dot' },
+      hoverinfo: 'skip', showlegend: false, name: `${plannerMinAlt}° min`,
+    });
+  }
   visible.forEach((p, idx) => {
     const color = ALT_PALETTE[idx % ALT_PALETTE.length];
     const dash  = ALT_DASHES[Math.floor(idx / ALT_PALETTE.length) % ALT_DASHES.length];
-    // Clip below-horizon points (break the line at the horizon with null).
+    // Clip to the min-altitude window (break the line with null below it), so
+    // the slider trims each path toward the centre — consistent with Timeline.
     const r = [], theta = [], mSize = [], mSymbol = [], mLine = [], cust = [], hov = [];
     for (const row of p.rows) {
-      const above = row.alt >= 0;
+      const above = row.alt >= plannerMinAlt;
       r.push(above ? 90 - row.alt : null);
       theta.push(above ? row.az : null);
       const hourly = row.i % 4 === 0;               // whole-hour marker
